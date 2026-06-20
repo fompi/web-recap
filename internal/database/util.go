@@ -1,10 +1,33 @@
 package database
 
 import (
+	"database/sql"
 	"net/url"
 	"strings"
 	"time"
 )
+
+// HasColumn checks if a column exists in a given table
+func HasColumn(db *sql.DB, tableName, columnName string) (bool, error) {
+	rows, err := db.Query("SELECT * FROM " + tableName + " LIMIT 0")
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return false, err
+	}
+
+	for _, col := range cols {
+		if strings.EqualFold(col, columnName) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 
 // ConvertChromeTimestamp converts Chrome's timestamp format (microseconds since 1601-01-01) to Unix time
 func ConvertChromeTimestamp(chromeTime int64) time.Time {

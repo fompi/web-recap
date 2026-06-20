@@ -1,8 +1,11 @@
 package database
 
 import (
+	"database/sql"
 	"testing"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestConvertChromeTimestamp(t *testing.T) {
@@ -199,3 +202,42 @@ func TestFilterByDateRange(t *testing.T) {
 		})
 	}
 }
+
+func TestHasColumn(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("failed to open in-memory database: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE test_table (id INTEGER, name TEXT, created_at TIMESTAMP)")
+	if err != nil {
+		t.Fatalf("failed to create test table: %v", err)
+	}
+
+	tests := []struct {
+		column   string
+		expected bool
+	}{
+		{"id", true},
+		{"name", true},
+		{"created_at", true},
+		{"ID", true}, // Case-insensitivity check
+		{"NAME", true},
+		{"missing", false},
+		{"other", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.column, func(t *testing.T) {
+			exists, err := HasColumn(db, "test_table", tt.column)
+			if err != nil {
+				t.Errorf("unexpected error checking column %q: %v", tt.column, err)
+			}
+			if exists != tt.expected {
+				t.Errorf("expected exists=%v for column %q, got %v", tt.expected, tt.column, exists)
+			}
+		})
+	}
+}
+

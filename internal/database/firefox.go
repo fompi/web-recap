@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -42,17 +43,57 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 	var query string
 	var args []interface{}
 
-	selectFields := `
+	hasCol := func(table, col string) bool {
+		found, _ := HasColumn(db, table, col)
+		return found
+	}
+
+	titleExpr := "'' as title"
+	if hasCol("moz_places", "title") {
+		titleExpr = "COALESCE(p.title, '') as title"
+	}
+
+	visitCountExpr := "0 as visit_count"
+	if hasCol("moz_places", "visit_count") {
+		visitCountExpr = "p.visit_count"
+	}
+
+	fromVisitExpr := "0 as from_visit"
+	if hasCol("moz_historyvisits", "from_visit") {
+		fromVisitExpr = "COALESCE(h.from_visit, 0) as from_visit"
+	}
+
+	visitTypeExpr := "0 as visit_type"
+	if hasCol("moz_historyvisits", "visit_type") {
+		visitTypeExpr = "COALESCE(h.visit_type, 0) as visit_type"
+	}
+
+	sessionExpr := "0 as session"
+	if hasCol("moz_historyvisits", "session") {
+		sessionExpr = "COALESCE(h.session, 0) as session"
+	}
+
+	frequencyExpr := "0 as frequency"
+	if hasCol("moz_places", "frequency") {
+		frequencyExpr = "COALESCE(p.frequency, 0) as frequency"
+	}
+
+	typedExpr := "0 as typed"
+	if hasCol("moz_places", "typed") {
+		typedExpr = "COALESCE(p.typed, 0) as typed"
+	}
+
+	selectFields := fmt.Sprintf(`
 		h.visit_date,
 		p.url,
-		COALESCE(p.title, '') as title,
-		p.visit_count,
-		COALESCE(h.from_visit, 0) as from_visit,
-		COALESCE(h.visit_type, 0) as visit_type,
-		COALESCE(h.session, 0) as session,
-		COALESCE(p.frequency, 0) as frequency,
-		COALESCE(p.typed, 0) as typed
-	`
+		%s,
+		%s,
+		%s,
+		%s,
+		%s,
+		%s,
+		%s
+	`, titleExpr, visitCountExpr, fromVisitExpr, visitTypeExpr, sessionExpr, frequencyExpr, typedExpr)
 
 	if !startDate.IsZero() || !endDate.IsZero() {
 		query = "SELECT " + selectFields + `

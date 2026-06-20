@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"os"
 	"runtime"
@@ -47,19 +48,66 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	var query string
 	var args []interface{}
 
-	selectFields := `
+	hasCol := func(table, col string) bool {
+		found, _ := HasColumn(db, table, col)
+		return found
+	}
+
+	titleExpr := "hi.url as title"
+	if hasCol("history_visits", "title") {
+		titleExpr = "COALESCE(hv.title, hi.url) as title"
+	} else if hasCol("history_items", "title") {
+		titleExpr = "COALESCE(hi.title, hi.url) as title"
+	}
+
+	redirectSourceExpr := "0 as redirect_source"
+	if hasCol("history_visits", "redirect_source") {
+		redirectSourceExpr = "COALESCE(hv.redirect_source, 0) as redirect_source"
+	}
+
+	redirectDestExpr := "0 as redirect_destination"
+	if hasCol("history_visits", "redirect_destination") {
+		redirectDestExpr = "COALESCE(hv.redirect_destination, 0) as redirect_destination"
+	}
+
+	originExpr := "0 as origin"
+	if hasCol("history_visits", "origin") {
+		originExpr = "COALESCE(hv.origin, 0) as origin"
+	}
+
+	genTypeExpr := "0 as generation_type"
+	if hasCol("history_visits", "generation_type") {
+		genTypeExpr = "COALESCE(hv.generation_type, 0) as generation_type"
+	}
+
+	loadSuccExpr := "1 as load_successful"
+	if hasCol("history_visits", "load_successful") {
+		loadSuccExpr = "COALESCE(hv.load_successful, 1) as load_successful"
+	}
+
+	httpNonGetExpr := "0 as http_non_get"
+	if hasCol("history_visits", "http_non_get") {
+		httpNonGetExpr = "COALESCE(hv.http_non_get, 0) as http_non_get"
+	}
+
+	synthesizedExpr := "0 as synthesized"
+	if hasCol("history_visits", "synthesized") {
+		synthesizedExpr = "COALESCE(hv.synthesized, 0) as synthesized"
+	}
+
+	selectFields := fmt.Sprintf(`
 		hv.visit_time,
 		hi.url,
-		COALESCE(hv.title, hi.url) as title,
+		%s,
 		hi.visit_count,
-		COALESCE(hv.redirect_source, 0) as redirect_source,
-		COALESCE(hv.redirect_destination, 0) as redirect_destination,
-		COALESCE(hv.origin, 0) as origin,
-		COALESCE(hv.generation_type, 0) as generation_type,
-		COALESCE(hv.load_successful, 1) as load_successful,
-		COALESCE(hv.http_non_get, 0) as http_non_get,
-		COALESCE(hv.synthesized, 0) as synthesized
-	`
+		%s,
+		%s,
+		%s,
+		%s,
+		%s,
+		%s,
+		%s
+	`, titleExpr, redirectSourceExpr, redirectDestExpr, originExpr, genTypeExpr, loadSuccExpr, httpNonGetExpr, synthesizedExpr)
 
 	if !startDate.IsZero() || !endDate.IsZero() {
 		query = "SELECT " + selectFields + `
