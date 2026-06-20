@@ -34,14 +34,15 @@ func ConvertFirefoxTimestamp(firefoxTime int64) time.Time {
 }
 
 // ConvertSafariTimestamp converts Safari's timestamp format (seconds since 2001-01-01) to Unix time
-func ConvertSafariTimestamp(safariTime int64) time.Time {
+func ConvertSafariTimestamp(safariTime float64) time.Time {
 	// Safari uses seconds since 2001-01-01
 	// Unix epoch is 1970-01-01
 	// Difference: 978307200 seconds
 	const safariEpochDiff = 978307200
 
-	unixSeconds := safariTime + safariEpochDiff
-	return time.Unix(unixSeconds, 0).UTC()
+	unixSeconds := int64(safariTime) + safariEpochDiff
+	unixNanos := int64((safariTime - float64(int64(safariTime))) * 1e9)
+	return time.Unix(unixSeconds, unixNanos).UTC()
 }
 
 // ExtractDomain extracts the domain from a URL string

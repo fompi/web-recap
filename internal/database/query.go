@@ -17,11 +17,11 @@ type HistoryQuerier interface {
 func NewQuerier(b *browser.Browser) (HistoryQuerier, error) {
 	switch b.Type {
 	case browser.Chrome, browser.Chromium, browser.Edge, browser.Brave:
-		return NewChromeHandler(b.Path), nil
+		return NewChromeHandler(b.Path, b.Profile), nil
 	case browser.Firefox:
-		return NewFirefoxHandler(b.Path), nil
+		return NewFirefoxHandler(b.Path, b.Profile), nil
 	case browser.Safari:
-		return NewSafariHandler(b.Path), nil
+		return NewSafariHandler(b.Path, b.Profile), nil
 	default:
 		return nil, ErrUnsupportedBrowser
 	}
@@ -69,3 +69,11 @@ func QueryMultipleBrowsers(detector *browser.Detector, startDate, endDate time.T
 
 	return allEntries, nil
 }
+
+// SortEntriesDescending sorts a slice of HistoryEntry objects descending by timestamp
+func SortEntriesDescending(entries []models.HistoryEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Timestamp.After(entries[j].Timestamp)
+	})
+}
+

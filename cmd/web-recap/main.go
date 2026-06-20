@@ -1,293 +1,109 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/rzolkos/web-recap/internal/browser"
 	"github.com/rzolkos/web-recap/internal/database"
+	"github.com/rzolkos/web-recap/internal/models"
 	"github.com/rzolkos/web-recap/internal/output"
+	"github.com/rzolkos/web-recap/internal/utils"
 )
 
 var (
-	browserType    string
-	date           string
-	startDate      string
-	endDate        string
-	startTime      string
-	endTime        string
-	timeHour       string
-	timezone       string
-	utcMode        bool
-	outputFile     string
-	dbPath         string
-	allBrowsers    bool
-	version        = "0.1.0-alpha"
+	fromFlag         string
+	toFlag           string
+	timezone         string
+	browserFlag      string
+	formatFlag       string
+	outputFile       string
+	dbFlag           string
+	userFlag         string
+	summary          bool
+	noSummary        bool
+	compress         bool
+	connectStr       string
+	conflictStrategy string
+	modeFlag         string
+	limitFlag        string
+	flatFlag         bool
+	version          = "0.2.0"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "web-recap",
-	Short: "Extract browser history in LLM-friendly JSON format",
-	Long: `web-recap extracts browser history from Chrome, Chromium, Firefox, Safari, and Edge
-and outputs it in JSON format suitable for analysis by LLMs and other tools.
-
-Date and time inputs are interpreted in your local timezone by default.
-
-Examples:
-  web-recap                          # Extract today's history from default browser
-  web-recap --browser chrome         # Extract from Chrome specifically
-  web-recap --date 2025-12-15        # Extract history from specific date (local time)
-  web-recap --date 2025-12-15 --time 12           # Extract 12pm hour (12:00-12:59)
-  web-recap --date 2025-12-15 --start-time 12:00 --end-time 13:00  # Time range
-  web-recap --tz America/New_York --date 2025-12-15  # Explicit timezone
-  web-recap --start-date 2025-12-01 --end-date 2025-12-15  # Date range
-  web-recap --all-browsers -o history.json  # All browsers to file
-`,
-	RunE: runWeb,
+	Short: "Extract browser history in human-friendly or machine-friendly formats",
+	Long: `web-recap extracts browser history from Chrome, Chromium, Firefox, Safari, and Edge.
+It supports advanced relative time filters, multiple output formats, and direct database ingestion.`,
 }
 
-func init() {
-	rootCmd.Flags().StringVarP(&browserType, "browser", "b", "auto", "Browser type: auto, chrome, chromium, edge, brave, firefox, or safari")
-	rootCmd.Flags().StringVar(&date, "date", "", "Specific date (YYYY-MM-DD, interpreted in local timezone)")
-	rootCmd.Flags().StringVar(&startDate, "start-date", "", "Start date (YYYY-MM-DD, interpreted in local timezone)")
-	rootCmd.Flags().StringVar(&endDate, "end-date", "", "End date (YYYY-MM-DD, interpreted in local timezone)")
-	rootCmd.Flags().StringVar(&startTime, "start-time", "", "Start time (HH:MM format)")
-	rootCmd.Flags().StringVar(&endTime, "end-time", "", "End time (HH:MM format)")
-	rootCmd.Flags().StringVar(&timeHour, "time", "", "Time hour shorthand (e.g., '12' for 12:00-12:59)")
-	rootCmd.Flags().StringVar(&timezone, "tz", "", "Timezone (e.g., America/New_York, UTC, local for system timezone)")
-	rootCmd.Flags().BoolVar(&utcMode, "utc", false, "Treat all dates/times as UTC instead of local timezone")
-	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
-	rootCmd.Flags().StringVar(&dbPath, "db-path", "", "Custom database path")
-	rootCmd.Flags().BoolVar(&allBrowsers, "all-browsers", false, "Extract from all detected browsers")
-
-	rootCmd.AddCommand(versionCmd)
-	rootCmd.AddCommand(listCmd)
+var dumpCmd = &cobra.Command{
+	Use:     "dump [flags]",
+	Short:   "Dump raw browser history entries",
+	Example: `  web-recap dump
+  web-recap dump --browser chrome -f "3 days"
+  web-recap dump --from "yesterday" --to "now" --format csv
+  web-recap dump -b safari -f "2026-06-20T10:00:00" -o history.json.gz -z`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runQuery(cmd, false, false)
+	},
 }
 
-func main() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+var statsCmd = &cobra.Command{
+	Use:     "stats [flags]",
+	Short:   "Show history statistics and charts",
+	Example: `  web-recap stats
+  web-recap stats --browser chrome,safari -f "7 days"`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runQuery(cmd, true, false)
+	},
 }
 
-// getTimezone returns the appropriate timezone based on flags
-func getTimezone(tzFlag string, utcFlag bool) (*time.Location, error) {
-	if utcFlag {
-		return time.UTC, nil
-	}
-
-	if tzFlag != "" {
-		if tzFlag == "local" {
-			return time.Local, nil
-		}
-		loc, err := time.LoadLocation(tzFlag)
-		if err != nil {
-			return nil, fmt.Errorf("invalid timezone %q: %v", tzFlag, err)
-		}
-		return loc, nil
-	}
-
-	// Default to system local timezone
-	return time.Local, nil
+var ingestCmd = &cobra.Command{
+	Use:     "ingest [flags]",
+	Short:   "Ingest browser history entries directly into a database",
+	Example: `  web-recap ingest -c sqlite://history.db
+  web-recap ingest -c postgres://user:pass@localhost/db -M split
+  web-recap ingest -c mongodb://localhost/history_db -M both -C replace`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runQuery(cmd, false, true)
+	},
 }
 
-// parseDateTimeInLocation parses a date and optional time in a specific timezone
-func parseDateTimeInLocation(dateStr, timeStr string, loc *time.Location) (time.Time, error) {
-	if dateStr == "" {
-		return time.Time{}, nil
-	}
-
-	// Parse date
-	dateTime, err := time.ParseInLocation("2006-01-02", dateStr, loc)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid date format: %v", err)
-	}
-
-	if timeStr == "" {
-		// No time specified, use start of day
-		return dateTime, nil
-	}
-
-	// Parse time
-	t, err := time.Parse("15:04", timeStr)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid time format (use HH:MM): %v", err)
-	}
-
-	// Combine date + time in the specified timezone
-	return time.Date(dateTime.Year(), dateTime.Month(), dateTime.Day(),
-		t.Hour(), t.Minute(), 0, 0, loc), nil
-}
-
-// parseHour parses a single hour value (0-23)
-func parseHour(hourStr string) (int, error) {
-	var hour int
-	_, err := fmt.Sscanf(hourStr, "%d", &hour)
-	if err != nil || hour < 0 || hour > 23 {
-		return 0, fmt.Errorf("invalid hour (must be 0-23): %s", hourStr)
-	}
-	return hour, nil
-}
-
-func runWeb(cmd *cobra.Command, args []string) error {
-	// Get timezone
-	loc, err := getTimezone(timezone, utcMode)
-	if err != nil {
-		return err
-	}
-
-	// Parse dates with timezone
-	var startTimeValue, endTimeValue time.Time
-	var err2 error
-
-	if date != "" {
-		// Single date mode
-		start, err := parseDateTimeInLocation(date, "", loc)
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List detected browsers and profiles",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		homeDir, err := browser.GetHomeDirForUser(userFlag)
 		if err != nil {
 			return err
 		}
+		detector := browser.NewDetectorForUser(homeDir)
+		browsers := detector.Detect()
 
-		if timeHour != "" {
-			// --time 12 means 12:00-12:59
-			hour, err := parseHour(timeHour)
-			if err != nil {
-				return err
-			}
-			startTimeValue = time.Date(start.Year(), start.Month(), start.Day(),
-				hour, 0, 0, 0, loc)
-			endTimeValue = startTimeValue.Add(1 * time.Hour)
-		} else if startTime != "" || endTime != "" {
-			// Explicit time range
-			var st, et string
-			if startTime != "" {
-				st = startTime
-			} else {
-				st = "00:00"
-			}
-			if endTime != "" {
-				et = endTime
-			} else {
-				et = "23:59"
-			}
-
-			startTimeValue, err = parseDateTimeInLocation(date, st, loc)
-			if err != nil {
-				return err
-			}
-			endTimeValue, err = parseDateTimeInLocation(date, et, loc)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Full day
-			startTimeValue = start
-			endTimeValue = start.Add(24 * time.Hour)
-		}
-	} else if startDate != "" || endDate != "" {
-		// Date range mode (existing logic, updated to use timezone)
-		if startDate != "" {
-			startTimeValue, err2 = parseDateTimeInLocation(startDate, "", loc)
-			if err2 != nil {
-				return err2
-			}
+		if len(browsers) == 0 {
+			fmt.Println("No browsers detected")
+			return nil
 		}
 
-		if endDate != "" {
-			endTimeValue, err2 = parseDateTimeInLocation(endDate, "", loc)
-			if err2 != nil {
-				return err2
-			}
-			endTimeValue = endTimeValue.Add(24 * time.Hour)
-		}
-	} else {
-		// No date specified - default to today
-		now := time.Now().In(loc)
-		startTimeValue = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-		endTimeValue = startTimeValue.Add(24 * time.Hour)
-	}
-
-	// Convert to UTC for database query (important!)
-	startTimeValue = startTimeValue.UTC()
-	endTimeValue = endTimeValue.UTC()
-
-	// Get browser
-	detector := browser.NewDetector()
-	var b *browser.Browser
-
-	// Default to all browsers if no specific browser and no --all-browsers flag
-	useAllBrowsers := allBrowsers || browserType == "auto"
-
-	if useAllBrowsers {
-		// Handle multiple browsers
-		entries, err := database.QueryMultipleBrowsers(detector, startTimeValue, endTimeValue)
-		if err != nil {
-			return fmt.Errorf("failed to query browsers: %v", err)
+		fmt.Println("Detected browsers and profiles:")
+		for _, b := range browsers {
+			fmt.Printf("  - %s (profile: %s, type: %s): %s\n", b.Name, b.Profile, b.Type, b.Path)
 		}
 
-		// Write output
-		out := os.Stdout
-		if outputFile != "" {
-			f, err := os.Create(outputFile)
-			if err != nil {
-				return fmt.Errorf("failed to create output file: %v", err)
-			}
-			defer f.Close()
-			out = f
-		}
-
-		return output.FormatJSON(out, entries, "all", startTimeValue, endTimeValue, timezone)
-	}
-
-	// Get specific browser
-	bType := browser.Type(browserType)
-	if dbPath != "" {
-		// Validate custom path
-		info, err := os.Stat(dbPath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("database file not found: %s", dbPath)
-			}
-			return fmt.Errorf("cannot access database file: %v", err)
-		}
-		if info.IsDir() {
-			return fmt.Errorf("path is a directory, not a file: %s", dbPath)
-		}
-
-		// Use custom path
-		b = &browser.Browser{
-			Type: bType,
-			Name: string(bType),
-			Path: dbPath,
-		}
-	} else {
-		var err error
-		b, err = detector.GetBrowser(bType)
-		if err != nil {
-			return fmt.Errorf("failed to get browser: %v", err)
-		}
-	}
-
-	// Query history
-	entries, err := database.Query(b, startTimeValue, endTimeValue)
-	if err != nil {
-		return fmt.Errorf("failed to query history: %v", err)
-	}
-
-	// Write output
-	out := os.Stdout
-	if outputFile != "" {
-		f, err := os.Create(outputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %v", err)
-		}
-		defer f.Close()
-		out = f
-	}
-
-	return output.FormatJSON(out, entries, b.Name, startTimeValue, endTimeValue, timezone)
+		return nil
+	},
 }
 
 var versionCmd = &cobra.Command{
@@ -298,23 +114,403 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List detected browsers",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		detector := browser.NewDetector()
-		browsers := detector.Detect()
+func init() {
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
-		if len(browsers) == 0 {
-			fmt.Println("No browsers detected")
-			return nil
+	// Add common filter flags to subcommands that query history
+	for _, sub := range []*cobra.Command{dumpCmd, statsCmd, ingestCmd} {
+		sub.Flags().StringVarP(&fromFlag, "from", "f", "", "Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)")
+		sub.Flags().StringVarP(&toFlag, "to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601)")
+		sub.Flags().StringVar(&timezone, "tz", "", "Timezone name (e.g. America/New_York, UTC, local)")
+		sub.Flags().StringVarP(&browserFlag, "browser", "b", "", "Comma-separated list of browsers (defaults to all)")
+		sub.Flags().StringVarP(&dbFlag, "db", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
+		sub.Flags().StringVarP(&userFlag, "user", "u", "", "Retrieve history for another system user")
+		sub.Flags().StringVarP(&limitFlag, "limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
+		sub.Flags().BoolVarP(&summary, "summary", "s", true, "Show summary on stderr")
+		sub.Flags().BoolVarP(&noSummary, "no-summary", "S", false, "Disable summary on stderr")
+	}
+
+	// Dump-specific flags
+	dumpCmd.Flags().StringVarP(&formatFlag, "format", "F", "table", "Output format: table, json, jsonl, csv")
+	dumpCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
+	dumpCmd.Flags().BoolVar(&compress, "compress", false, "Gzip compress output file or stdout")
+
+	// Ingest-specific flags
+	ingestCmd.Flags().StringVarP(&connectStr, "connect", "c", "", "Database DSN/connection string for ingestion (required)")
+	ingestCmd.Flags().StringVarP(&conflictStrategy, "conflict", "C", "skip", "Ingestion conflict strategy: skip, replace, keep")
+	ingestCmd.Flags().StringVarP(&modeFlag, "mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
+	ingestCmd.Flags().BoolVar(&flatFlag, "flat", false, "Create flat tables repeating common data instead of relational schemas")
+	_ = ingestCmd.MarkFlagRequired("connect")
+
+	// List-specific flags
+	listCmd.Flags().StringVarP(&userFlag, "user", "u", "", "Retrieve history for another system user")
+
+	rootCmd.AddCommand(dumpCmd)
+	rootCmd.AddCommand(statsCmd)
+	rootCmd.AddCommand(ingestCmd)
+	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(versionCmd)
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
+	// 1. Resolve Timezone
+	var loc *time.Location
+	if timezone != "" {
+		if timezone == "local" {
+			loc = time.Local
+		} else {
+			var err error
+			loc, err = time.LoadLocation(timezone)
+			if err != nil {
+				return fmt.Errorf("invalid timezone %q: %v", timezone, err)
+			}
+		}
+	} else {
+		loc = time.Local
+	}
+
+	// 2. Parse Date Helpers
+	now := time.Now().In(loc)
+	var fromVal, toVal time.Time
+
+	if fromFlag == "" && toFlag == "" {
+		var err error
+		fromVal, err = utils.ParseTimeHelper("today", now, loc)
+		if err != nil {
+			return err
+		}
+		toVal = now
+	} else {
+		if fromFlag != "" {
+			var err error
+			fromVal, err = utils.ParseTimeHelper(fromFlag, now, loc)
+			if err != nil {
+				return err
+			}
+		} else {
+			fromVal = time.Unix(0, 0).UTC()
 		}
 
-		fmt.Println("Detected browsers:")
-		for _, b := range browsers {
-			fmt.Printf("  - %s (%s): %s\n", b.Name, b.Type, b.Path)
+		if toFlag != "" {
+			var err error
+			toVal, err = utils.ParseTimeHelper(toFlag, now, loc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 3. Resolve Home Directory and Detector
+	homeDir, err := browser.GetHomeDirForUser(userFlag)
+	if err != nil {
+		return err
+	}
+	detector := browser.NewDetectorForUser(homeDir)
+
+	// 4. Parse DB Paths
+	var browsersFlagList []string
+	if browserFlag != "" {
+		browsersFlagList = strings.Split(browserFlag, ",")
+	}
+	dbPaths, err := parseDBPaths(dbFlag, browsersFlagList)
+	if err != nil {
+		return err
+	}
+
+	// 5. Resolve Selected Browsers
+	browsers, err := resolveBrowsers(browserFlag, detector, dbPaths)
+	if err != nil {
+		return err
+	}
+
+	// 6. Parse Limits
+	browserLimits, totalLimit, err := parseLimit(limitFlag)
+	if err != nil {
+		return err
+	}
+
+	// 7. Query entries from selected browsers
+	var allEntries []models.HistoryEntry
+	var browserNames []string
+
+	for _, b := range browsers {
+		browserNames = append(browserNames, fmt.Sprintf("%s (%s)", b.Name, b.Profile))
+		entries, err := database.Query(b, fromVal, toVal)
+		if err != nil {
+			if browserFlag != "" {
+				return fmt.Errorf("failed to query %s (profile: %s): %v", b.Name, b.Profile, err)
+			}
+			continue
 		}
 
+		// Apply browser-specific limit if set
+		limitKey := strings.ToLower(b.Name)
+		if limitVal, ok := browserLimits[limitKey]; ok && len(entries) > limitVal {
+			entries = entries[:limitVal]
+		} else if limitVal, ok := browserLimits[string(b.Type)]; ok && len(entries) > limitVal {
+			entries = entries[:limitVal]
+		}
+
+		allEntries = append(allEntries, entries...)
+	}
+
+	// 8. Normalise, Collate, and Sort
+	database.SortEntriesDescending(allEntries)
+
+	// Apply total limit if set
+	if totalLimit > 0 && len(allEntries) > totalLimit {
+		allEntries = allEntries[:totalLimit]
+	}
+
+	showSummary := summary && !noSummary
+
+	// If stats subcommand is chosen, display stats
+	if statsOnly {
+		return output.FormatStats(os.Stdout, allEntries, fromVal, toVal, loc)
+	}
+
+	// 9. Ingest directly if connect string is provided (only via ingest subcommand)
+	if ingestOnly {
+		inserted, err := database.Ingest(connectStr, allEntries, conflictStrategy, modeFlag, flatFlag)
+		if err != nil {
+			return err
+		}
+		if showSummary {
+			fmt.Fprintf(os.Stderr, "Successfully ingested %d entries into %s using %s mode (flat: %t)\n", inserted, connectStr, modeFlag, flatFlag)
+		}
 		return nil
-	},
+	}
+
+	// 10. Write Output
+	var out io.Writer = os.Stdout
+	var fileToClose *os.File
+
+	if outputFile != "" {
+		f, err := os.Create(outputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %v", err)
+		}
+		fileToClose = f
+		out = f
+	}
+
+	var gzipWriter *gzip.Writer
+	if compress {
+		gzipWriter = gzip.NewWriter(out)
+		out = gzipWriter
+	}
+
+	defer func() {
+		if gzipWriter != nil {
+			gzipWriter.Close()
+		}
+		if fileToClose != nil {
+			fileToClose.Close()
+		}
+	}()
+
+	// 11. Format output
+	formatFlag = strings.ToLower(strings.TrimSpace(formatFlag))
+	switch formatFlag {
+	case "table":
+		err = output.FormatTable(out, allEntries)
+	case "json":
+		err = output.FormatJSON(out, allEntries, strings.Join(browserNames, ", "), fromVal, toVal, timezone)
+	case "jsonl":
+		err = output.FormatJSONLines(out, allEntries)
+	case "csv":
+		err = output.FormatCSV(out, allEntries)
+	default:
+		return fmt.Errorf("unsupported output format %q", formatFlag)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to format output: %v", err)
+	}
+
+	if showSummary {
+		fmt.Fprintf(os.Stderr, "Summary: Extracted %d entries from %d browser profile(s)\n", len(allEntries), len(browsers))
+	}
+
+	return nil
+}
+
+func parseDBPaths(dbFlag string, browsers []string) (map[string]string, error) {
+	paths := make(map[string]string)
+	if dbFlag == "" {
+		return paths, nil
+	}
+
+	parts := strings.Split(dbFlag, ",")
+	for _, part := range parts {
+		if strings.Contains(part, ":") {
+			idx := strings.Index(part, ":")
+			prefix := part[:idx]
+			isBrowser := false
+			for _, b := range []string{"chrome", "chromium", "edge", "brave", "firefox", "safari"} {
+				if prefix == b {
+					isBrowser = true
+					break
+				}
+			}
+
+			if isBrowser {
+				paths[prefix] = part[idx+1:]
+				continue
+			}
+		}
+
+		if len(browsers) == 1 {
+			paths[browsers[0]] = part
+		} else {
+			base := filepath.Base(part)
+			if base == "History" {
+				paths["chrome"] = part
+			} else if base == "places.sqlite" {
+				paths["firefox"] = part
+			} else if base == "History.db" {
+				paths["safari"] = part
+			} else {
+				return nil, fmt.Errorf("ambiguous database path %q: please specify browser type (e.g. chrome:%s)", part, part)
+			}
+		}
+	}
+	return paths, nil
+}
+
+func resolveBrowsers(browserFlag string, detector *browser.Detector, dbPaths map[string]string) ([]*browser.Browser, error) {
+	detected := detector.Detect()
+	detectedMap := make(map[string][]*browser.Browser)
+	for i := range detected {
+		detectedMap[string(detected[i].Type)] = append(detectedMap[string(detected[i].Type)], &detected[i])
+	}
+
+	if browserFlag == "" {
+		var result []*browser.Browser
+		// Add detected profiles
+		for i := range detected {
+			b := &detected[i]
+			if path, ok := dbPaths[string(b.Type)]; ok {
+				b.Path = path
+			}
+			result = append(result, b)
+		}
+		// Add custom overrides
+		for bType, path := range dbPaths {
+			found := false
+			for _, r := range result {
+				if string(r.Type) == bType {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result = append(result, &browser.Browser{
+					Type:    browser.Type(bType),
+					Name:    bType,
+					Path:    path,
+					Profile: "Default",
+				})
+			}
+		}
+		return result, nil
+	}
+
+	var result []*browser.Browser
+	parts := strings.Split(browserFlag, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(strings.ToLower(part))
+		bType := browser.Type(part)
+
+		switch bType {
+		case browser.Chrome, browser.Chromium, browser.Edge, browser.Brave, browser.Firefox, browser.Safari:
+		default:
+			return nil, fmt.Errorf("unsupported browser type %q", part)
+		}
+
+		if path, ok := dbPaths[part]; ok {
+			result = append(result, &browser.Browser{
+				Type:    bType,
+				Name:    part,
+				Path:    path,
+				Profile: "Default",
+			})
+			continue
+		}
+
+		if profiles, ok := detectedMap[part]; ok {
+			result = append(result, profiles...)
+		} else {
+			return nil, fmt.Errorf("browser %q is not installed or detected on this system", part)
+		}
+	}
+
+	return result, nil
+}
+
+func parseLimit(limitStr string) (map[string]int, int, error) {
+	limitStr = strings.TrimSpace(limitStr)
+	if limitStr == "" {
+		return nil, 0, nil
+	}
+
+	browserLimits := make(map[string]int)
+	var totalLimit int
+	var err error
+
+	if strings.Contains(limitStr, "::") {
+		parts := strings.Split(limitStr, "::")
+		if len(parts) != 2 {
+			return nil, 0, fmt.Errorf("invalid limit format: %s", limitStr)
+		}
+		if parts[0] != "" {
+			subparts := strings.Split(parts[0], ",")
+			for _, sub := range subparts {
+				sub = strings.TrimSpace(sub)
+				kv := strings.Split(sub, ":")
+				if len(kv) != 2 {
+					return nil, 0, fmt.Errorf("invalid browser limit format: %s", sub)
+				}
+				bName := strings.TrimSpace(kv[0])
+				bLim, err := strconv.Atoi(strings.TrimSpace(kv[1]))
+				if err != nil || bLim < 0 {
+					return nil, 0, fmt.Errorf("invalid limit value: %s", kv[1])
+				}
+				browserLimits[bName] = bLim
+			}
+		}
+		totalLimit, err = strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err != nil || totalLimit < 0 {
+			return nil, 0, fmt.Errorf("invalid total limit value: %s", parts[1])
+		}
+	} else if strings.Contains(limitStr, ":") {
+		subparts := strings.Split(limitStr, ",")
+		for _, sub := range subparts {
+			sub = strings.TrimSpace(sub)
+			kv := strings.Split(sub, ":")
+			if len(kv) != 2 {
+				return nil, 0, fmt.Errorf("invalid browser limit format: %s", sub)
+			}
+			bName := strings.TrimSpace(kv[0])
+			bLim, err := strconv.Atoi(strings.TrimSpace(kv[1]))
+			if err != nil || bLim < 0 {
+				return nil, 0, fmt.Errorf("invalid limit value: %s", kv[1])
+			}
+			browserLimits[bName] = bLim
+		}
+	} else {
+		totalLimit, err = strconv.Atoi(limitStr)
+		if err != nil || totalLimit < 0 {
+			return nil, 0, fmt.Errorf("invalid total limit value: %s", limitStr)
+		}
+	}
+
+	return browserLimits, totalLimit, nil
 }

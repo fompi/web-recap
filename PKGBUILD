@@ -1,0 +1,25 @@
+# Maintainer: Rob Zolkos <robzolkos@gmail.com>
+pkgname=web-recap
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Extract browser history in human-friendly or machine-friendly formats"
+arch=('x86_64' 'aarch64')
+url="https://github.com/rzolkos/web-recap"
+license=('MIT')
+depends=('glibc')
+makedepends=('go')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/rzolkos/web-recap/archive/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "${pkgname}-${pkgver}"
+  export CGO_ENABLED=0
+  go build -ldflags="-s -w" -o "${pkgname}" ./cmd/web-recap
+}
+
+package() {
+  cd "${pkgname}-${pkgver}"
+  install -Dm755 "${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm644 "man/${pkgname}.1" "${pkgdir}/usr/share/man/man1/${pkgname}.1"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

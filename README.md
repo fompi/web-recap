@@ -1,19 +1,22 @@
 # web-recap
 
-Extract browser history from Chrome, Chromium, Brave, Firefox, Safari, and Edge browsers and output it in JSON format suitable for analysis by LLMs and other tools.
+Extract browser history from Chrome, Chromium, Brave, Firefox, Safari, and Edge browsers and output it in human-friendly or machine-friendly formats, or ingest it directly into relational or document databases.
 
-> **Privacy:** This tool runs entirely on your machine and never transmits data. Your browser history stays local unless you explicitly pipe it to an external service (like an LLM API).
+> **Privacy:** This tool runs entirely on your machine and never transmits data. Your browser history stays local unless you explicitly pipe it to an external service.
+
+---
 
 ## Features
 
-- **Multi-browser support**: Chrome, Chromium, Edge, Brave, Firefox, and Safari
-- **Cross-platform**: Works on Linux, macOS, and Windows
-- **Automatic detection**: Auto-detects installed browsers or specify manually
-- **Date filtering**: Extract history for specific dates or date ranges
-- **Timezone support**: Parse dates in your local timezone or specify any timezone
-- **Time filtering**: Extract history for specific hours or time ranges
-- **LLM-friendly output**: JSON format optimized for consumption by language models
-- **Minimal dependencies**: Pure Go implementation with no CGO required for better cross-platform compilation
+- **Multi-profile auto-detection**: Scans and harvests history from all profiles (e.g. Default, Work, Profile 1) of all installed browsers in a single run.
+- **Dedicated Subcommands**: Clean separation of concerns with subcommands for dumping history, displaying stats/charts, and database ingestion.
+- **Unified Time Filters**: Only two flags (`--from` and `--to`) replace old complex combinations, accepting ISO 8601 dates or human-friendly helpers (`yesterday`, `today`, `now`, `3 days ago`, `5 hours`, etc.).
+- **Extended Raw Fields**: Captures all browser-specific parameters (durations, transitions, sessions, redirects, origins, page statuses) without data loss.
+- **Direct Database Ingestion**: Copies browser history directly to SQLite, PostgreSQL, MySQL, or MongoDB.
+- **Relational & Flat Layouts**: Choose between normalized relational schemas (linked via foreign keys with cascade delete) and denormalized flat repeating data.
+- **Minimal dependencies**: Pure Go implementation with no CGO required for simple cross-platform compilation.
+
+---
 
 ## Installation
 
@@ -29,20 +32,10 @@ Download the latest binary from [GitHub Releases](https://github.com/robzolkos/w
 | Windows | `web-recap-windows-amd64.exe` |
 
 ```bash
-# Linux
-curl -L https://github.com/robzolkos/web-recap/releases/latest/download/web-recap-linux-amd64 -o ~/.local/bin/web-recap
-chmod +x ~/.local/bin/web-recap
-
 # macOS (Apple Silicon)
 curl -L https://github.com/robzolkos/web-recap/releases/latest/download/web-recap-darwin-arm64 -o ~/.local/bin/web-recap
 chmod +x ~/.local/bin/web-recap
-
-# macOS (Intel)
-curl -L https://github.com/robzolkos/web-recap/releases/latest/download/web-recap-darwin-amd64 -o ~/.local/bin/web-recap
-chmod +x ~/.local/bin/web-recap
 ```
-
-> **Note:** Ensure `~/.local/bin` is in your PATH. Add `export PATH="$HOME/.local/bin:$PATH"` to your shell config if needed.
 
 ### Build from Source
 
@@ -51,257 +44,196 @@ Requires Go 1.21+
 ```bash
 git clone https://github.com/robzolkos/web-recap.git
 cd web-recap
-go build ./cmd/web-recap
+make build
 ./web-recap --help
 ```
 
+---
+
+## Rationale
+
+The CLI interface and database engine of `web-recap` were overhauled to improve usability, prevent data loss, and maintain a clean separation of concerns:
+
+1. **Parameter Simplification (Unified Date/Time)**
+   - *Problem:* Previously, users had to combine 5 different parameters (`--date`, `--start-date`, `--end-date`, `--time`, `--start-time`, `--end-time`) to filter dates and times, which was complex and prone to conflicts.
+   - *Solution:* Unified all 5 parameter options into exactly two flags: `--from` / `-f` and `--to` / `-t`. They accept full ISO8601 timestamps, dates, or relative helpers (`start` / `0` for start of log, `today`, `yesterday`, `now`, and offsets like `5 hours ago`, `3 days`, `30 minutes`). By default, it extracts history from the beginning of "today" up to "now".
+2. **Separation of Concerns via Subcommands**
+   - *Problem:* Commands, printing options, and database connection logic were cluttered together on a single root command.
+   - *Solution:* Split actions into discrete subcommands:
+     - `dump`: Exports history logs (JSON, JSONL, CSV, Table).
+     - `stats`: Analyzes user web activity and outputs summaries and ASCII bar charts.
+     - `ingest`: Direct database copy script (keeping connection logic out of the print command).
+     - `list`: Helper command to discover active browsers and user profiles.
+3. **Multi-Profile Harvesting**
+   - *Problem:* Most users have multiple profiles (e.g. Work vs Personal). The tool originally searched only for the "Default" profile.
+   - *Solution:* Rewrote browser detection to find all active profiles, extracting and stamping entries with their corresponding `profile` name.
+4. **Relational vs Flat layouts**
+   - *Problem:* Different browsers record different metrics (e.g., Safari logs redirect origins; Chrome logs transition types and visit durations). Normalizing them into a single table causes data loss or results in a sparse table.
+   - *Solution:* Designed two modes via the `--flat` flag:
+     - **Relational mode (default / `--flat=false`):** Common columns are stored in a parent `history` table with an auto-incrementing `id` primary key. Browser-specific fields are stored in child tables (e.g. `history_chrome`) linked using `history_id` with `ON DELETE CASCADE`.
+     - **Flat mode (`--flat=true`):** Denormalizes everything into flat tables repeating the common fields, avoiding relational constraints.
+
+---
+
+## Migration Guide (Before vs After)
+
+| Goal / Scenario | Before | After |
+|---|---|---|
+| List profiles | `web-recap list` | `web-recap list` |
+| Extract today's logs | `web-recap` | `web-recap dump` |
+| Specific browser | `web-recap --browser chrome` | `web-recap dump --browser chrome` |
+| Filter by date range | `web-recap --start-date 2025-12-01 --end-date 2025-12-15` | `web-recap dump --from 2025-12-01 --to 2025-12-15` |
+| Hours range | `web-recap --date 2025-12-15 --start-time 12:00 --end-time 13:00` | `web-recap dump --from 2025-12-15T12:00:00 --to 2025-12-15T13:00:00` |
+| Relative offset | (N/A - manually calculate date strings) | `web-recap dump -f "3 days"` |
+| Yesterday to now | (N/A) | `web-recap dump -f yesterday -t now` |
+| Show summary charts | (Console summary printed by default) | `web-recap stats` |
+| Ingest Chrome history | `web-recap --browser chrome --db-path sqlite://hist.db` | `web-recap ingest -c sqlite://hist.db --browser chrome` |
+
+---
+
 ## Usage
 
-### Basic Commands
-
+### Discover Profiles
 ```bash
-# Show help
-web-recap --help
-
-# List detected browsers
 web-recap list
-
-# Show version
-web-recap version
 ```
 
-### Extract History
+### Dump History Entries
+```bash
+# Dump default browser history from today
+web-recap dump
+
+# Export history from last 7 days in JSON Lines format
+web-recap dump --from "7 days" --format jsonl
+
+# Export a specific date range from Chrome & Firefox to a compressed CSV
+web-recap dump -b chrome,firefox -f 2026-06-01 -t 2026-06-15 -F csv -o history.csv.gz -z
+```
+
+### View Statistics
+```bash
+# Show history stats and domains charts from today
+web-recap stats
+
+# Statistics from last 24 hours in America/New_York timezone
+web-recap stats --from "24 hours" --tz America/New_York
+```
+
+---
+
+## Direct Database Ingestion
+
+You can copy and homogenize history logs directly into local or remote databases.
 
 ```bash
-# Extract today's history from default browser
-web-recap
-
-# Extract from specific browser
-web-recap --browser chrome
-web-recap --browser firefox
-web-recap --browser safari
-
-# Extract from specific date
-web-recap --date 2025-12-15
-
-# Extract date range
-web-recap --start-date 2025-12-01 --end-date 2025-12-15
-
-# Extract from all browsers
-web-recap --all-browsers
-
-# Save to file
-web-recap -o history.json
-
-# Custom database path
-web-recap --db-path /path/to/History
-
-# Timezone support (dates interpreted in your timezone)
-web-recap --date 2025-12-15 --tz America/New_York
-
-# Explicit UTC mode
-web-recap --date 2025-12-15 --utc
-
-# Time filtering - extract history for specific hours
-web-recap --date 2025-12-15 --start-time 12:00 --end-time 13:00
-
-# Shorthand for single hour
-web-recap --date 2025-12-15 --time 12  # Extracts 12:00-12:59
+web-recap ingest --connect <DSN> [flags]
 ```
 
-### Command Examples
+### Supported Databases
+- **SQLite**: `sqlite://path/to/database.db` or `sqlite3://path/to/database.db`
+- **PostgreSQL**: `postgres://user:password@host:port/dbname?sslmode=disable`
+- **MySQL**: `mysql://user:password@tcp(host:port)/dbname`
+- **MongoDB**: `mongodb://host:port/dbname`
 
+### Ingestion Flags
+- `-c`, `--connect` (Required): Connection DSN string.
+- `-C`, `--conflict` (Default `skip`): Conflict resolution strategy (`skip`, `replace`, `keep`).
+- `-M`, `--mode` (Default `merged`):
+  - `merged`: Single `history` table containing only common columns.
+  - `split`: Browser-specific tables containing common + raw columns.
+  - `both`: Populates both the merged table and the browser-specific tables.
+- `--flat` (Default `false`):
+  - If `false` (relational), uses foreign key references (`history_id`) to link child tables (e.g. `history_chrome`) to the parent `history` table.
+  - If `true` (flat), denormalizes tables, repeating common columns in child tables.
+
+### Examples
+
+#### 1. Normalized Relational SQLite DB (Default)
+Populates parent `history` table and child tables linked via foreign keys (`ON DELETE CASCADE`):
 ```bash
-# Get Chrome history from last 7 days
-web-recap --browser chrome --start-date 2025-12-09 --end-date 2025-12-16
-
-# Export all browser history to file
-web-recap --all-browsers --output all-history.json
-
-# Check what browsers are available
-web-recap list
-
-# Extract yesterday's activity between 12pm and 1pm (in your local timezone)
-web-recap --date "$(date -d yesterday +%Y-%m-%d)" --start-time 12:00 --end-time 13:00
-
-# Extract from a specific timezone
-web-recap --date 2025-12-15 --tz Europe/London --time 14
-
-# Explicitly use UTC (useful in scripts or CI)
-web-recap --start-date 2025-12-09 --end-date 2025-12-15 --utc --all-browsers
+web-recap ingest -c sqlite://history_relational.db -M both -f "30 days"
 ```
 
-## JSON Output Format
-
-The tool outputs history in the following JSON format:
-
-```json
-{
-  "browser": "chrome",
-  "start_date": "2025-12-15T00:00:00Z",
-  "end_date": "2025-12-15T23:59:59Z",
-  "timezone": "America/New_York",
-  "total_entries": 343,
-  "entries": [
-    {
-      "timestamp": "2025-12-15T09:15:23Z",
-      "url": "https://example.com/page",
-      "title": "Example Page Title",
-      "visit_count": 3,
-      "domain": "example.com",
-      "browser": "chrome"
-    },
-    ...
-  ]
-}
-```
-
-## Output Fields
-
-- **browser**: Browser name (chrome, firefox, safari, edge)
-- **start_date**: Report period start (ISO 8601 UTC format)
-- **end_date**: Report period end (ISO 8601 UTC format)
-- **timezone**: Timezone used for date interpretation (e.g., "America/New_York", "UTC")
-- **total_entries**: Number of history entries in the report
-- **entries**: Array of history entries, each containing:
-  - **timestamp**: Visit time in ISO 8601 UTC format
-  - **url**: Full URL visited
-  - **title**: Page title
-  - **visit_count**: Total visits to this URL
-  - **domain**: Extracted domain name
-  - **browser**: Browser source
-
-## LLM Usage
-
-The JSON output is designed to be easily consumed by language models. You can pipe the output directly to your LLM:
-
+#### 2. Flat SQLite DB
+Populates flat tables repeating columns:
 ```bash
-# Get chrome history and pass to Claude
-web-recap --browser chrome --date 2025-12-15 | claude --prompt "Summarize my web activity"
-
-# Or save to file for later analysis
-web-recap --all-browsers --output history.json
-# Then use with your LLM as context
+web-recap ingest -c sqlite://history_flat.db -M both --flat -f "30 days"
 ```
 
-## Supported Browsers
+#### 3. Ingest into Remote PostgreSQL
+```bash
+web-recap ingest -c "postgres://postgres:secret@localhost:5432/history?sslmode=disable" -M merged
+```
 
-### Chrome/Chromium/Edge/Brave
-- **Platforms**: Linux, macOS, Windows
-- **Database**: SQLite (`History` file)
-- **Timestamp format**: Microseconds since 1601-01-01
+#### 4. Ingest into MongoDB
+```bash
+web-recap ingest -c mongodb://localhost:27017/web_history -M both
+```
+*Note:* Relational mode (`--flat=false` / default) in MongoDB uses deterministic `ObjectID` mapping between the parent `history` collection and child collections.
 
-### Firefox
-- **Platforms**: Linux, macOS, Windows
-- **Database**: SQLite (`places.sqlite`)
-- **Timestamp format**: Microseconds since Unix epoch
+---
 
-### Safari
-- **Platforms**: macOS only
-- **Database**: SQLite (`History.db`)
-- **Timestamp format**: Seconds since 2001-01-01
+## Extended Database Schemas
 
-## Database Locations
+### Relational Schema (`--flat=false`, `-M both` / default)
 
-### Linux
-- Chrome: `~/.config/google-chrome/Default/History`
-- Chromium: `~/.config/chromium/Default/History`
-- Edge: `~/.config/microsoft-edge/Default/History`
-- Brave: `~/.config/BraveSoftware/Brave-Browser/Default/History`
-- Firefox: `~/.mozilla/firefox/*/places.sqlite`
+```mermaid
+erDiagram
+    history {
+        int id PK "Autoincrement"
+        string browser
+        string profile
+        timestamp timestamp
+        text url
+        text title
+        string domain
+        int visit_count
+    }
+    history_chrome {
+        int history_id PK, FK "ON DELETE CASCADE"
+        int visit_duration
+        int transition
+        int from_visit
+        int segment_id
+        int typed_count
+    }
+    history_firefox {
+        int history_id PK, FK "ON DELETE CASCADE"
+        int from_visit
+        int visit_type
+        int session
+        int frequency
+        int typed
+    }
+    history_safari {
+        int history_id PK, FK "ON DELETE CASCADE"
+        int redirect_source
+        int redirect_destination
+        int origin
+        int generation_type
+        int load_successful
+        int http_non_get
+        int synthesized
+    }
+    history ||--o| history_chrome : references
+    history ||--o| history_firefox : references
+    history ||--o| history_safari : references
+```
 
-### macOS
-- Chrome: `~/Library/Application Support/Google/Chrome/Default/History`
-- Chromium: `~/Library/Application Support/Chromium/Default/History`
-- Edge: `~/Library/Application Support/Microsoft Edge/Default/History`
-- Brave: `~/Library/Application Support/BraveSoftware/Brave-Browser/Default/History`
-- Firefox: `~/Library/Application Support/Firefox/*/places.sqlite`
-- Safari: `~/Library/Safari/History.db`
-
-### Windows
-- Chrome: `%LOCALAPPDATA%\Google\Chrome\User Data\Default\History`
-- Chromium: `%LOCALAPPDATA%\Chromium\User Data\Default\History`
-- Edge: `%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\History`
-- Brave: `%LOCALAPPDATA%\BraveSoftware\Brave-Browser\User Data\Default\History`
-- Firefox: `%LOCALAPPDATA%\Mozilla\Firefox\*/places.sqlite`
-
-## Technical Details
-
-### Database Locking
-The tool automatically handles browser database locking by copying the database to a temporary file before reading it. This allows you to extract history while your browser is running.
-
-### Timestamp Conversion
-Each browser uses a different timestamp format which is automatically converted to ISO 8601 UTC format for consistency.
-
-### Timezone Support
-By default, web-recap interprets dates in your system's local timezone. You can:
-- Explicitly specify a timezone with `--tz America/New_York`
-- Force UTC interpretation with `--utc` (useful for scripts and CI/CD)
-- Extract by time of day with `--start-time` and `--end-time` (in 24-hour format)
-- Use the `--time` shorthand for single-hour extraction (e.g., `--time 12` extracts 12:00-12:59)
-
-All dates are converted to UTC for database queries, and timestamps in the JSON output are always in UTC format.
-
-### Date Filtering
-When using `--date`, it extracts history for the entire 24-hour period in the specified timezone. When using `--start-date` and `--end-date`, both dates are inclusive and cover the full 24-hour period. Use `--start-time` and `--end-time` to narrow results to specific hours of the day.
+---
 
 ## Development
 
-### Build
 ```bash
-go build ./cmd/web-recap
+# Run tests
+go test -v ./...
+
+# Build binary
+make build
 ```
 
-### Test
-```bash
-go test ./...
-```
-
-### Cross-compile for all platforms
-```bash
-make build-all
-```
-
-### Release Process
-
-Releases are created manually by pushing a version tag. The GitHub Actions workflow will automatically build binaries for all platforms and create a GitHub release.
-
-```bash
-# Create and push a version tag
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-This triggers the release workflow which:
-1. Builds binaries for Linux (amd64), macOS (amd64, arm64), and Windows (amd64)
-2. Creates a GitHub release with the tag name
-3. Uploads all binaries as release assets
-
-## Troubleshooting
-
-### "No browsers detected"
-Ensure your browser is installed at the default location. You can specify a custom database path:
-```bash
-web-recap --db-path /path/to/History
-```
-
-### Permission errors
-Make sure you have read access to the browser database. On macOS, you may need to grant permissions:
-```bash
-xattr -d com.apple.quarantine ./web-recap
-```
-
-### Browser running errors
-The tool should handle locked databases automatically, but if you get errors, close your browser or try again later.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+---
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## SKILL.md
-
-See [SKILL.md](./SKILL.md) for integration instructions with Claude and other LLMs.
+MIT License. See [LICENSE](LICENSE) for details.

@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+export DH_GOPKG = github.com/rzolkos/web-recap
+
+%:
+	dh $@ --buildsystem=golang
+
+override_dh_auto_build:
+	dh_auto_build -- -ldflags="-s -w"
+
+override_dh_installman:
+	dh_installman man/web-recap.1

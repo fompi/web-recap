@@ -8,10 +8,13 @@ import (
 )
 
 // GetDatabasePath returns the database path for a given browser type on the current platform
-func GetDatabasePath(browserType Type) (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+func GetDatabasePath(browserType Type, home string) (string, error) {
+	if home == "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
 	}
 
 	switch runtime.GOOS {
@@ -20,7 +23,7 @@ func GetDatabasePath(browserType Type) (string, error) {
 	case "darwin":
 		return getDarwinPath(home, browserType)
 	case "windows":
-		return getWindowsPath(browserType)
+		return getWindowsPath(home, browserType)
 	default:
 		return "", ErrUnsupportedPlatform
 	}
@@ -70,14 +73,20 @@ func getDarwinPath(home string, browserType Type) (string, error) {
 	}
 }
 
-func getWindowsPath(browserType Type) (string, error) {
-	appData := os.Getenv("LOCALAPPDATA")
-	if appData == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
+func getWindowsPath(home string, browserType Type) (string, error) {
+	var appData string
+	if home != "" {
+		appData = filepath.Join(home, "AppData", "Local")
+	} else {
+		appData = os.Getenv("LOCALAPPDATA")
+		if appData == "" {
+			var err error
+			home, err = os.UserHomeDir()
+			if err != nil {
+				return "", err
+			}
+			appData = filepath.Join(home, "AppData", "Local")
 		}
-		appData = filepath.Join(home, "AppData/Local")
 	}
 
 	switch browserType {
@@ -107,8 +116,14 @@ func GetFirefoxProfilePath(profileBaseDir string) (string, error) {
 		return "", ErrFirefoxProfileNotFound
 	}
 
+	searchDir := profileBaseDir
+	profilesSubdir := filepath.Join(profileBaseDir, "Profiles")
+	if fileExists(profilesSubdir) {
+		searchDir = profilesSubdir
+	}
+
 	// Try to find the default profile or most recently modified profile
-	entries, err := os.ReadDir(profileBaseDir)
+	entries, err := os.ReadDir(searchDir)
 	if err != nil {
 		return "", err
 	}
@@ -124,7 +139,7 @@ func GetFirefoxProfilePath(profileBaseDir string) (string, error) {
 		name := entry.Name()
 		// Look for .default-release or .default profiles first
 		if strings.HasSuffix(name, ".default-release") || strings.HasSuffix(name, ".default") {
-			placesPath := filepath.Join(profileBaseDir, name, "places.sqlite")
+			placesPath := filepath.Join(searchDir, name, "places.sqlite")
 			if fileExists(placesPath) {
 				return placesPath, nil
 			}
@@ -139,7 +154,7 @@ func GetFirefoxProfilePath(profileBaseDir string) (string, error) {
 		modTime := info.ModTime().Unix()
 		if modTime > mostRecentTime {
 			mostRecentTime = modTime
-			placesPath := filepath.Join(profileBaseDir, name, "places.sqlite")
+			placesPath := filepath.Join(searchDir, name, "places.sqlite")
 			if fileExists(placesPath) {
 				mostRecentPath = placesPath
 			}
@@ -156,4 +171,26 @@ func GetFirefoxProfilePath(profileBaseDir string) (string, error) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// GetHomeDirForUser returns the home directory of the specified user on the current platform
+func GetHomeDirForUser(username string) (string, error) {
+	if username == "" {
+		return os.UserHomeDir()
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join("/Users", username), nil
+	case "linux":
+		return filepath.Join("/home", username), nil
+	case "windows":
+		drive := os.Getenv("SystemDrive")
+		if drive == "" {
+			drive = "C:"
+		}
+		return filepath.Join(drive, "Users", username), nil
+	default:
+		return "", ErrUnsupportedPlatform
+	}
 }

@@ -1,0 +1,15 @@
+Source: web-recap
+Section: utils
+Priority: optional
+Maintainer: Rob Zolkos <robzolkos@gmail.com>
+Build-Depends: debhelper-compat (= 13), golang-go
+Standards-Version: 4.6.2
+Homepage: https://github.com/rzolkos/web-recap
+
+Package: web-recap
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Extract browser history in human-friendly or machine-friendly formats
+ web-recap is a tool to extract browser history from Chrome, Firefox, Safari,
+ Edge, Brave, etc. and format it as JSON, CSV, JSONLines, or text table. It can
+ also directly ingest records into SQLite, PostgreSQL, MySQL or MongoDB.

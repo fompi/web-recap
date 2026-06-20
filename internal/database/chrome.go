@@ -12,13 +12,15 @@ import (
 
 // ChromeHandler handles Chrome/Chromium/Edge browser history
 type ChromeHandler struct {
-	dbPath string
+	dbPath  string
+	profile string
 }
 
 // NewChromeHandler creates a new Chrome history handler
-func NewChromeHandler(dbPath string) *ChromeHandler {
+func NewChromeHandler(dbPath string, profile string) *ChromeHandler {
 	return &ChromeHandler{
-		dbPath: dbPath,
+		dbPath:  dbPath,
+		profile: profile,
 	}
 }
 
@@ -37,19 +39,23 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	}
 	defer db.Close()
 
-	// Prepare date filters
-	// Query the visits table joined with urls to get individual visit records
-	// (not just last_visit_time per URL)
 	var query string
 	var args []interface{}
 
+	selectFields := `
+		v.visit_time,
+		u.url,
+		COALESCE(u.title, '') as title,
+		u.visit_count,
+		COALESCE(v.visit_duration, 0) as visit_duration,
+		COALESCE(v.transition, 0) as transition,
+		COALESCE(v.from_visit, 0) as from_visit,
+		COALESCE(v.segment_id, 0) as segment_id,
+		COALESCE(u.typed_count, 0) as typed_count
+	`
+
 	if !startDate.IsZero() || !endDate.IsZero() {
-		query = `
-		SELECT
-			v.visit_time,
-			u.url,
-			u.title,
-			u.visit_count
+		query = "SELECT " + selectFields + `
 		FROM visits v
 		JOIN urls u ON v.url = u.id
 		WHERE v.visit_time > 0
@@ -62,7 +68,6 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		}
 
 		if !endDate.IsZero() {
-			// Only add 24 hours if the end time is at midnight (user specified just a date)
 			endTimestamp := endDate.Unix()
 			if endDate.Hour() == 0 && endDate.Minute() == 0 && endDate.Second() == 0 {
 				endTimestamp += 86400
@@ -74,12 +79,7 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 
 		query += ` ORDER BY v.visit_time DESC`
 	} else {
-		query = `
-		SELECT
-			v.visit_time,
-			u.url,
-			u.title,
-			u.visit_count
+		query = "SELECT " + selectFields + `
 		FROM visits v
 		JOIN urls u ON v.url = u.id
 		WHERE v.visit_time > 0
@@ -100,9 +100,10 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		var chromeTime int64
 		var url, title string
 		var visitCount int
+		var visitDuration, transition, fromVisit, segmentID, typedCount int64
 
-		if err := rows.Scan(&chromeTime, &url, &title, &visitCount); err != nil {
-			continue
+		if err := rows.Scan(&chromeTime, &url, &title, &visitCount, &visitDuration, &transition, &fromVisit, &segmentID, &typedCount); err != nil {
+			return nil, err
 		}
 
 		timestamp := ConvertChromeTimestamp(chromeTime)
@@ -111,12 +112,18 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		}
 
 		entries = append(entries, models.HistoryEntry{
-			Timestamp:  timestamp,
-			URL:        url,
-			Title:      title,
-			VisitCount: visitCount,
-			Domain:     ExtractDomain(url),
-			Browser:    "chrome",
+			Timestamp:     timestamp,
+			URL:           url,
+			Title:         title,
+			VisitCount:    visitCount,
+			Domain:        ExtractDomain(url),
+			Browser:       "chrome",
+			Profile:       h.profile,
+			VisitDuration: visitDuration,
+			Transition:    transition,
+			FromVisit:     fromVisit,
+			SegmentID:     segmentID,
+			TypedCount:    typedCount,
 		})
 	}
 

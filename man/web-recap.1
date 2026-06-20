@@ -1,0 +1,82 @@
+.TH WEB-RECAP 1 "2026-06-20" "web-recap 0.2.0" "General Commands Manual"
+.SH NAME
+web-recap \- Extract browser history in human-friendly or machine-friendly formats
+.SH SYNOPSIS
+.B web-recap
+.RI [ command ]
+.RI [ flags ]
+.SH DESCRIPTION
+.B web-recap
+is a command line tool designed to extract browsing history from popular web browsers (Chrome, Chromium, Firefox, Safari, and Edge) on Linux, macOS, and Windows. It outputs the history in highly readable or structured formats (Table, CSV, JSON, and JSONLines) suitable for analysis by humans or LLMs, and can directly ingest browsing history into relational (SQLite, MySQL, PostgreSQL) and document (MongoDB) databases.
+.SH COMMANDS
+.TP
+.B dump
+Extracts and dumps raw browser history records based on filters.
+.TP
+.B stats
+Calculates and displays history summary statistics and hourly activity histogram.
+.TP
+.B ingest
+Ingests queried browser history entries directly into a target database.
+.TP
+.B list
+Lists all detected web browsers and their local database file paths.
+.TP
+.B version
+Prints the current version of the tool.
+.SH FLAGS
+.TP
+.BI \-f\fR,\fB \-\-from " value"
+Start date/time for query. Supports ISO8601 strings (e.g. "2026-06-20T12:00:00Z") and relative keywords: "today", "yesterday", "start", "0", "now", or "N days/hours/minutes ago".
+.TP
+.BI \-t\fR,\fB \-\-to " value"
+End date/time for query. Supports ISO8601 strings and relative keywords.
+.TP
+.BI \-\-tz " value"
+Explicit timezone for parsing helper strings and dates lacking offsets (e.g. "America/New_York"). Defaults to local system timezone.
+.TP
+.BI \-b\fR,\fB \-\-browser " value"
+Comma-separated list of browser names to target (e.g. "chrome,safari,firefox"). Defaults to all detected browsers.
+.TP
+.BI \-d\fR,\fB \-\-db " value"
+Custom database file path overrides in format "browser:path" (e.g. "chrome:/custom/path/History").
+.TP
+.BI \-u\fR,\fB \-\-user " value"
+Specify another user username to query home directory paths for.
+.TP
+.BI \-l\fR,\fB \-\-limit " value"
+Max records to query. Supports total limits (e.g. "100") or per-browser configurations (e.g. "chrome:50,safari:20::100").
+.SH DUMP FLAGS
+.TP
+.BI \-F\fR,\fB \-\-format " value"
+Output format for dump. Options: "table", "json", "jsonl", "csv". Default is "table".
+.TP
+.BI \-o\fR,\fB \-\-output " file"
+Redirect output to file instead of stdout.
+.TP
+.BI \-z\fR,\fB \-\-compress
+Compress output stream (stdout or file) using gzip.
+.SH INGEST FLAGS
+.TP
+.BI \-c\fR,\fB \-\-connect " connection_string"
+Direct database ingestion connection string (e.g. "mysql://user:pass@localhost/db", "sqlite://history.db", or "mongodb://localhost"). (Required for ingest)
+.TP
+.BI \-M\fR,\fB \-\-mode " value"
+Ingestion mode. Options: "merged" (common columns in single table), "split" (separate tables per browser with raw columns), "flat" (single denormalized flat table containing all columns), "both" (both merged and split tables). Default is "merged".
+.TP
+.BI \-C\fR,\fB \-\-conflict " strategy"
+Ingestion conflict strategy: "skip" (default), "replace", or "keep".
+.SH EXAMPLES
+Extract history from the last 3 days in table format:
+.IP
+web-recap dump -f "3 days"
+.PP
+Calculate stats for Chrome history since yesterday:
+.IP
+web-recap stats -b chrome -f yesterday
+.PP
+Ingest all history for the current day into a local SQLite database, replacing duplicates in split layout:
+.IP
+web-recap ingest -c sqlite://history.db -M split -C replace
+.SH AUTHOR
+Created by Rob Zolkos and rewritten for Debian/Fedora repositories.

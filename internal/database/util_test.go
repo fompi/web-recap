@@ -74,19 +74,19 @@ func TestConvertFirefoxTimestamp(t *testing.T) {
 func TestConvertSafariTimestamp(t *testing.T) {
 	tests := []struct {
 		name            string
-		safariVal       int64
+		safariVal       float64
 		expectZero      bool
 		minExpectedYear int
 	}{
 		{
 			name:            "Zero timestamp (Safari epoch)",
-			safariVal:       0,
+			safariVal:       0.0,
 			expectZero:      false, // 0 = 2001-01-01
 			minExpectedYear: 2001,
 		},
 		{
 			name:            "Valid timestamp",
-			safariVal:       730000000, // Some arbitrary seconds since 2001
+			safariVal:       730000000.0, // Some arbitrary seconds since 2001
 			expectZero:      false,
 			minExpectedYear: 2024, // 730M seconds since 2001 is ~2024
 		},

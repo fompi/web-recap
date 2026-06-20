@@ -1,0 +1,11 @@
+web-recap (0.2.0-1) unstable; urgency=medium
+
+  * Initial release of the revamped web-recap.
+  * Added dump, stats, list subcommands.
+  * Supported relative date expressions (yesterday, today, N days ago).
+  * Fixed Safari SQLite REAL timestamp scanning issue.
+  * Fixed Firefox profile detection inside nested Profiles directory.
+  * Added SQLite, MySQL, PostgreSQL, and MongoDB database ingestion.
+  * Integrated unit tests with mocked database tests.
+
+ -- Rob Zolkos <robzolkos@gmail.com>  Sat, 20 Jun 2026 20:00:00 +0200

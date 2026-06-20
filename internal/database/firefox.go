@@ -12,13 +12,15 @@ import (
 
 // FirefoxHandler handles Firefox browser history
 type FirefoxHandler struct {
-	dbPath string
+	dbPath  string
+	profile string
 }
 
 // NewFirefoxHandler creates a new Firefox history handler
-func NewFirefoxHandler(dbPath string) *FirefoxHandler {
+func NewFirefoxHandler(dbPath string, profile string) *FirefoxHandler {
 	return &FirefoxHandler{
-		dbPath: dbPath,
+		dbPath:  dbPath,
+		profile: profile,
 	}
 }
 
@@ -37,36 +39,39 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 	}
 	defer db.Close()
 
-	// Prepare date filters
 	var query string
 	var args []interface{}
 
+	selectFields := `
+		h.visit_date,
+		p.url,
+		COALESCE(p.title, '') as title,
+		p.visit_count,
+		COALESCE(h.from_visit, 0) as from_visit,
+		COALESCE(h.visit_type, 0) as visit_type,
+		COALESCE(h.session, 0) as session,
+		COALESCE(p.frequency, 0) as frequency,
+		COALESCE(p.typed, 0) as typed
+	`
+
 	if !startDate.IsZero() || !endDate.IsZero() {
-		query = `
-		SELECT
-			h.visit_date,
-			p.url,
-			p.title,
-			p.visit_count
+		query = "SELECT " + selectFields + `
 		FROM moz_historyvisits h
 		JOIN moz_places p ON h.place_id = p.id
 		WHERE h.visit_date > 0
 		`
 
 		if !startDate.IsZero() {
-			// Firefox uses microseconds since epoch
 			firefoxStart := startDate.Unix() * 1000000
 			query += ` AND h.visit_date >= ?`
 			args = append(args, firefoxStart)
 		}
 
 		if !endDate.IsZero() {
-			// Only add 24 hours if the end time is at midnight (user specified just a date)
 			endTimestamp := endDate.Unix()
 			if endDate.Hour() == 0 && endDate.Minute() == 0 && endDate.Second() == 0 {
 				endTimestamp += 86400
 			}
-			// Firefox uses microseconds since epoch
 			firefoxEnd := endTimestamp * 1000000
 			query += ` AND h.visit_date < ?`
 			args = append(args, firefoxEnd)
@@ -74,12 +79,7 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 
 		query += ` ORDER BY h.visit_date DESC`
 	} else {
-		query = `
-		SELECT
-			h.visit_date,
-			p.url,
-			p.title,
-			p.visit_count
+		query = "SELECT " + selectFields + `
 		FROM moz_historyvisits h
 		JOIN moz_places p ON h.place_id = p.id
 		WHERE h.visit_date > 0
@@ -100,9 +100,10 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		var firefoxTime int64
 		var url, title string
 		var visitCount int
+		var fromVisit, visitType, session, frequency, typed int64
 
-		if err := rows.Scan(&firefoxTime, &url, &title, &visitCount); err != nil {
-			continue
+		if err := rows.Scan(&firefoxTime, &url, &title, &visitCount, &fromVisit, &visitType, &session, &frequency, &typed); err != nil {
+			return nil, err
 		}
 
 		timestamp := ConvertFirefoxTimestamp(firefoxTime)
@@ -117,6 +118,12 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 			VisitCount: visitCount,
 			Domain:     ExtractDomain(url),
 			Browser:    "firefox",
+			Profile:    h.profile,
+			FromVisit:  fromVisit,
+			VisitType:  visitType,
+			Session:    session,
+			Frequency:  frequency,
+			Typed:      typed,
 		})
 	}
 

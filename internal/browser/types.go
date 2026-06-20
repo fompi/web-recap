@@ -12,9 +12,10 @@ const (
 	Auto     Type = "auto"
 )
 
-// Browser represents a detected browser with its database path
+// Browser represents a detected browser with its database path and profile name
 type Browser struct {
-	Type Type
-	Name string
-	Path string
+	Type    Type
+	Name    string
+	Path    string
+	Profile string
 }
