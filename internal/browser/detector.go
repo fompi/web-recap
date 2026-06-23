@@ -62,8 +62,16 @@ func (d *Detector) Detect() []Browser {
 			}
 
 			if runtime.GOOS == "darwin" {
-				profilesDir := filepath.Join(home, "Library/Containers/com.apple.Safari/Data/Library/Safari/Profiles")
-				tabsDBPath := filepath.Join(home, "Library/Containers/com.apple.Safari/Data/Library/Safari/SafariTabs.db")
+				// Try standard path first, fallback to container path
+				profilesDir := filepath.Join(home, "Library/Safari/Profiles")
+				tabsDBPath := filepath.Join(home, "Library/Safari/SafariTabs.db")
+
+				if !fileExists(profilesDir) {
+					profilesDir = filepath.Join(home, "Library/Containers/com.apple.Safari/Data/Library/Safari/Profiles")
+				}
+				if !fileExists(tabsDBPath) {
+					tabsDBPath = filepath.Join(home, "Library/Containers/com.apple.Safari/Data/Library/Safari/SafariTabs.db")
+				}
 				
 				profileNames := parseSafariProfiles(tabsDBPath)
 				

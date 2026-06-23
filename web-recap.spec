@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.2.2
+Version:        0.2.3
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,9 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.3-1
+- Fix Safari profile detection standard path on macOS
+
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.2-1
 - Fix SQL ingest replace queries, date range filter helper, time parser, and add Safari permission guidance
 
