@@ -7,19 +7,31 @@ description: Extract browser history for finding URLs by topic or getting visit 
 
 Extracts browser history from Chrome, Chromium, Brave, Firefox, Safari, Edge. Run `web-recap --help` for all flags.
 
-## Key Flags
+## Key Subcommands and Flags
 
+### `dump` (Export history logs)
 ```
---date YYYY-MM-DD        Specific date (local timezone)
---start-date YYYY-MM-DD  Start of range
---end-date YYYY-MM-DD    End of range
---time HH                Specific hour (e.g., --time 14 for 2pm-3pm)
---browser NAME           chrome|firefox|safari|edge|brave|auto
+--from, -f string        Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)
+--to, -t string          End date/time (e.g. now, yesterday, or ISO8601)
+--browser, -b string     Comma-separated list of browsers (defaults to all)
+--format, -F string      Output format: table, json, jsonl, csv (default: table)
+--output, -o string      Output file (default: stdout)
+--compress               Gzip compress output file or stdout
 ```
 
-## Output Format
+### `stats` (Show history stats and ascii charts)
+```
+--from, -f string        Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)
+--to, -t string          End date/time (e.g. now, yesterday, or ISO8601)
+--browser, -b string     Comma-separated list of browsers
+--tz string              Timezone name (e.g. America/New_York, UTC, local)
+```
 
-JSON with `entries` array. Each entry has: `timestamp`, `url`, `title`, `domain`, `visit_count`, `browser`.
+### `list` (Helper command to discover active browsers and profiles)
+
+## Output Format (for `dump -F json`)
+
+JSON with `entries` array. Each entry has: `timestamp`, `url`, `title`, `domain`, `visit_count`, `browser`, `profile`, plus browser-specific fields (e.g., `visit_duration`, `visit_type`, etc.).
 
 ## Usage Patterns
 
@@ -29,18 +41,17 @@ JSON with `entries` array. Each entry has: `timestamp`, `url`, `title`, `domain`
 
 ```bash
 # Find entries matching a topic (searches title, domain, url)
-web-recap | jq '[.entries[] | select(.title + .domain + .url | test("KEYWORD"; "i"))] | unique_by(.url) | map({title, url, domain})'
+web-recap dump --format json -f "30 days" | jq '[.entries[] | select(.title + .domain + .url | test("KEYWORD"; "i"))] | unique_by(.url) | map({title, url, domain})'
 ```
 
-### Stats (visit overview)
+### Stats (visit overview via stats subcommand)
 
 ```bash
-# Domain counts, sorted by visits
-web-recap | jq '[.entries[].domain] | group_by(.) | map({domain: .[0], count: length}) | sort_by(-.count)'
+web-recap stats -f "30 days"
 ```
 
 ### Quick metadata
 
 ```bash
-web-recap | jq '{start: .start_date, end: .end_date, total: .total_entries}'
+web-recap dump --format json -f "30 days" | jq '{start: .start_date, end: .end_date, total: .total_entries}'
 ```
