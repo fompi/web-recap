@@ -2,9 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
-	"io"
-	"os"
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
@@ -33,11 +30,11 @@ func NewChromeHandler(dbPath string, browserName string, profile string) *Chrome
 // GetHistory retrieves history entries from Chrome
 func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error) {
 	// Copy database to temp location to avoid locking issues
-	tempDB, err := h.copyDatabase()
+	tempDB, cleanup, err := CopyDatabaseWithWAL(h.dbPath, "web-recap-chrome")
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(tempDB)
+	defer cleanup()
 
 	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
@@ -134,30 +131,4 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	}
 
 	return entries, rows.Err()
-}
-
-// copyDatabase copies the Chrome database to a temporary file
-func (h *ChromeHandler) copyDatabase() (string, error) {
-	src, err := os.Open(h.dbPath)
-	if err != nil {
-		if os.IsPermission(err) {
-			return "", fmt.Errorf("permission denied reading Chrome history database: please check file permissions or grant Full Disk Access to your terminal/application (path: %s)", h.dbPath)
-		}
-		return "", err
-	}
-	defer src.Close()
-
-	dst, err := os.CreateTemp("", "web-recap-chrome-*.db")
-	if err != nil {
-		return "", err
-	}
-	tmpFile := dst.Name()
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		os.Remove(tmpFile)
-		return "", err
-	}
-
-	return tmpFile, nil
 }

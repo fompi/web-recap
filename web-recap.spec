@@ -33,6 +33,7 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %changelog
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.3-1
 - Fix Safari profile detection standard path on macOS
+- Copy WAL/journal files alongside databases to capture uncommitted history and fix missing entries
 
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.2-1
 - Fix SQL ingest replace queries, date range filter helper, time parser, and add Safari permission guidance

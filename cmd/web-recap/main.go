@@ -246,6 +246,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 		browserNames = append(browserNames, fmt.Sprintf("%s (%s)", b.Name, b.Profile))
 		entries, err := database.Query(b, fromVal, toVal)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to query %s (profile: %s): %v\n", b.Name, b.Profile, err)
 			if browserFlag != "" {
 				return fmt.Errorf("failed to query %s (profile: %s): %v", b.Name, b.Profile, err)
 			}

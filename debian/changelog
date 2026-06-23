@@ -1,6 +1,7 @@
 web-recap (0.2.3-1) unstable; urgency=medium
 
   * Fix Safari profile detection standard path on macOS.
+  * Copy WAL/journal files alongside databases to capture uncommitted history and fix missing entries.
 
  -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 21:50:00 +0200
 

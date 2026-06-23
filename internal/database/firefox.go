@@ -3,8 +3,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"io"
-	"os"
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
@@ -33,11 +31,11 @@ func NewFirefoxHandler(dbPath string, browserName string, profile string) *Firef
 // GetHistory retrieves history entries from Firefox
 func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error) {
 	// Copy database to temp location to avoid locking issues
-	tempDB, err := h.copyDatabase()
+	tempDB, cleanup, err := CopyDatabaseWithWAL(h.dbPath, "web-recap-firefox")
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(tempDB)
+	defer cleanup()
 
 	db, err := sql.Open("sqlite", tempDB)
 	if err != nil {
@@ -174,30 +172,4 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 	}
 
 	return entries, rows.Err()
-}
-
-// copyDatabase copies the Firefox database to a temporary file
-func (h *FirefoxHandler) copyDatabase() (string, error) {
-	src, err := os.Open(h.dbPath)
-	if err != nil {
-		if os.IsPermission(err) {
-			return "", fmt.Errorf("permission denied reading Firefox history database: please check file permissions or grant Full Disk Access to your terminal/application (path: %s)", h.dbPath)
-		}
-		return "", err
-	}
-	defer src.Close()
-
-	dst, err := os.CreateTemp("", "web-recap-firefox-*.db")
-	if err != nil {
-		return "", err
-	}
-	tmpFile := dst.Name()
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		os.Remove(tmpFile)
-		return "", err
-	}
-
-	return tmpFile, nil
 }

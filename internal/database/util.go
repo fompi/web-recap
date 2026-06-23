@@ -2,7 +2,10 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
+	"io"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -133,4 +136,69 @@ func FilterByDateRange(entries []interface{}, startDate, endDate time.Time) []in
 	}
 
 	return filtered
+}
+
+// CopyDatabaseWithWAL copies the main database file and its auxiliary SQLite files (-wal, -shm, -journal)
+// if they exist, to prevent loss of uncheckpointed data from running browsers.
+// It returns the temporary database path, a cleanup function, and any error encountered.
+func CopyDatabaseWithWAL(srcPath string, prefix string) (string, func(), error) {
+	src, err := os.Open(srcPath)
+	if err != nil {
+		if os.IsPermission(err) || strings.Contains(err.Error(), "operation not permitted") {
+			return "", nil, fmt.Errorf("permission denied reading database: please check file permissions or grant Full Disk Access (path: %s)", srcPath)
+		}
+		return "", nil, err
+	}
+	defer src.Close()
+
+	dst, err := os.CreateTemp("", prefix+"-*.db")
+	if err != nil {
+		return "", nil, err
+	}
+	tmpPath := dst.Name()
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, src); err != nil {
+		os.Remove(tmpPath)
+		return "", nil, err
+	}
+
+	var copiedAuxFiles []string
+	cleanup := func() {
+		os.Remove(tmpPath)
+		for _, f := range copiedAuxFiles {
+			os.Remove(f)
+		}
+	}
+
+	// Try to copy WAL, SHM, and journal files if they exist
+	auxSuffixes := []string{"-wal", "-shm", "-journal"}
+	for _, suffix := range auxSuffixes {
+		auxSrcPath := srcPath + suffix
+		if _, err := os.Stat(auxSrcPath); err == nil {
+			auxDstPath := tmpPath + suffix
+			if err := copyFile(auxSrcPath, auxDstPath); err == nil {
+				copiedAuxFiles = append(copiedAuxFiles, auxDstPath)
+			}
+		}
+	}
+
+	return tmpPath, cleanup, nil
+}
+
+func copyFile(srcPath, dstPath string) error {
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	return err
 }
