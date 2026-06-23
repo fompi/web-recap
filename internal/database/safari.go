@@ -14,15 +14,20 @@ import (
 
 // SafariHandler handles Safari browser history
 type SafariHandler struct {
-	dbPath  string
-	profile string
+	dbPath      string
+	browserName string
+	profile     string
 }
 
 // NewSafariHandler creates a new Safari history handler
-func NewSafariHandler(dbPath string, profile string) *SafariHandler {
+func NewSafariHandler(dbPath string, browserName string, profile string) *SafariHandler {
+	if browserName == "" {
+		browserName = "safari"
+	}
 	return &SafariHandler{
-		dbPath:  dbPath,
-		profile: profile,
+		dbPath:      dbPath,
+		browserName: browserName,
+		profile:     profile,
 	}
 }
 
@@ -175,7 +180,7 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			Title:               title,
 			VisitCount:          visitCount,
 			Domain:              ExtractDomain(url),
-			Browser:             "safari",
+			Browser:             h.browserName,
 			Profile:             h.profile,
 			RedirectSource:      redirectSource,
 			RedirectDestination: redirectDestination,

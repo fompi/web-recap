@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.2.0
+Version:        0.2.1
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,5 +31,8 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.1-1
+- Add support for Safari profiles, Chromium Local State mapping, and Firefox profiles.ini
+
 * Sat Jun 20 2026 Rob Zolkos <robzolkos@gmail.com> - 0.2.0-1
 - Initial Fedora/RedHat package release of revamped web-recap.

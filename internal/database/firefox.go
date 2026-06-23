@@ -13,15 +13,20 @@ import (
 
 // FirefoxHandler handles Firefox browser history
 type FirefoxHandler struct {
-	dbPath  string
-	profile string
+	dbPath      string
+	browserName string
+	profile     string
 }
 
 // NewFirefoxHandler creates a new Firefox history handler
-func NewFirefoxHandler(dbPath string, profile string) *FirefoxHandler {
+func NewFirefoxHandler(dbPath string, browserName string, profile string) *FirefoxHandler {
+	if browserName == "" {
+		browserName = "firefox"
+	}
 	return &FirefoxHandler{
-		dbPath:  dbPath,
-		profile: profile,
+		dbPath:      dbPath,
+		browserName: browserName,
+		profile:     profile,
 	}
 }
 
@@ -158,7 +163,7 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 			Title:      title,
 			VisitCount: visitCount,
 			Domain:     ExtractDomain(url),
-			Browser:    "firefox",
+			Browser:    h.browserName,
 			Profile:    h.profile,
 			FromVisit:  fromVisit,
 			VisitType:  visitType,

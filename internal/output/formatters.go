@@ -16,7 +16,7 @@ func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"browser", "timestamp", "domain", "title", "url", "visit_count"}
+	header := []string{"browser", "profile", "timestamp", "domain", "title", "url", "visit_count"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -24,6 +24,7 @@ func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 	for _, entry := range entries {
 		row := []string{
 			entry.Browser,
+			entry.Profile,
 			entry.Timestamp.Format(time.RFC3339),
 			entry.Domain,
 			entry.Title,
@@ -43,7 +44,7 @@ func FormatTable(w io.Writer, entries []models.HistoryEntry) error {
 	tw := tabwriter.NewWriter(w, 4, 4, 2, ' ', 0)
 	
 	// Write header
-	fmt.Fprintln(tw, "BROWSER\tTIMESTAMP\tDOMAIN\tTITLE\tURL")
+	fmt.Fprintln(tw, "BROWSER\tPROFILE\tTIMESTAMP\tDOMAIN\tTITLE\tURL")
 	
 	for _, entry := range entries {
 		// Truncate title for clean display
@@ -58,8 +59,9 @@ func FormatTable(w io.Writer, entries []models.HistoryEntry) error {
 			url = url[:57] + "..."
 		}
 		
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			entry.Browser,
+			entry.Profile,
 			entry.Timestamp.Format("2006-01-02 15:04:05"),
 			entry.Domain,
 			title,

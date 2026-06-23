@@ -39,7 +39,8 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	for _, entry := range entries {
 		domainCounts[entry.Domain]++
 		urlCounts[entry.URL]++
-		browserCounts[entry.Browser]++
+		browserKey := fmt.Sprintf("%s (%s)", strings.Title(entry.Browser), entry.Profile)
+		browserCounts[browserKey]++
 
 		// Hour in specified location
 		entryTimeLocal := entry.Timestamp.In(loc)
@@ -84,10 +85,17 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
 	// Print browser breakdown
-	fmt.Fprintln(w, "Visits by Browser:")
-	for b, count := range browserCounts {
+	fmt.Fprintln(w, "Visits by Browser & Profile:")
+	var sortedBrowsers []string
+	for b := range browserCounts {
+		sortedBrowsers = append(sortedBrowsers, b)
+	}
+	sort.Strings(sortedBrowsers)
+
+	for _, b := range sortedBrowsers {
+		count := browserCounts[b]
 		pct := (float64(count) / float64(totalVisits)) * 100
-		fmt.Fprintf(w, "  - %-12s %5d (%5.1f%%)\n", strings.Title(b), count, pct)
+		fmt.Fprintf(w, "  - %-25s %5d (%5.1f%%)\n", b, count, pct)
 	}
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 

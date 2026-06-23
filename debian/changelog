@@ -1,3 +1,10 @@
+web-recap (0.2.1-1) unstable; urgency=medium
+
+  * Add support for Safari profiles, Chromium Local State mapping, and Firefox profiles.ini.
+  * Differentiate browser profiles in CSV, CLI tables, and statistics.
+
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 20:02:00 +0200
+
 web-recap (0.2.0-1) unstable; urgency=medium
 
   * Initial release of the revamped web-recap.

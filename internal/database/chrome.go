@@ -12,15 +12,20 @@ import (
 
 // ChromeHandler handles Chrome/Chromium/Edge browser history
 type ChromeHandler struct {
-	dbPath  string
-	profile string
+	dbPath      string
+	browserName string
+	profile     string
 }
 
 // NewChromeHandler creates a new Chrome history handler
-func NewChromeHandler(dbPath string, profile string) *ChromeHandler {
+func NewChromeHandler(dbPath string, browserName string, profile string) *ChromeHandler {
+	if browserName == "" {
+		browserName = "chrome"
+	}
 	return &ChromeHandler{
-		dbPath:  dbPath,
-		profile: profile,
+		dbPath:      dbPath,
+		browserName: browserName,
+		profile:     profile,
 	}
 }
 
@@ -117,7 +122,7 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			Title:         title,
 			VisitCount:    visitCount,
 			Domain:        ExtractDomain(url),
-			Browser:       "chrome",
+			Browser:       h.browserName,
 			Profile:       h.profile,
 			VisitDuration: visitDuration,
 			Transition:    transition,

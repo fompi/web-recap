@@ -58,7 +58,7 @@ func TestFirefoxHandler_GetHistory(t *testing.T) {
 		t.Fatalf("failed to insert mock data: %v", err)
 	}
 
-	handler := NewFirefoxHandler(dbPath, "test-firefox-profile")
+	handler := NewFirefoxHandler(dbPath, "firefox", "test-firefox-profile")
 	startDate := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)
 
