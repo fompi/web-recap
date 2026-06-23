@@ -1,4 +1,4 @@
-.TH WEB-RECAP 1 "2026-06-24" "web-recap 0.3.1" "General Commands Manual"
+.TH WEB-RECAP 1 "2026-06-24" "web-recap 0.3.3" "General Commands Manual"
 .SH NAME
 web-recap \- Extract browser history in human-friendly or machine-friendly formats
 .SH SYNOPSIS
@@ -32,13 +32,13 @@ Start date/time for query. Supports ISO8601 strings (e.g. "2026-06-20T12:00:00Z"
 .BI \-t\fR,\fB \-\-to " value"
 End date/time for query. Supports ISO8601 strings and relative keywords.
 .TP
-.BI \-\-tz " value"
+.BI \-Z\fR,\fB \-\-timezone " value"
 Explicit timezone for parsing helper strings and dates lacking offsets (e.g. "America/New_York"). Defaults to local system timezone.
 .TP
 .BI \-b\fR,\fB \-\-browser " value"
 Comma-separated list of browser names to target (e.g. "chrome,safari,firefox"). Defaults to all detected browsers.
 .TP
-.BI \-d\fR,\fB \-\-db " value"
+.BI \-d\fR,\fB \-\-database " value"
 Custom database file path overrides in format "browser:path" (e.g. "chrome:/custom/path/History").
 .TP
 .BI \-u\fR,\fB \-\-user " value"
@@ -55,7 +55,7 @@ Output format for dump. Options: "table", "json", "jsonl", "csv". Default is "ta
 Redirect output to file instead of stdout.
 .TP
 .BI \-z\fR,\fB \-\-compress
-Compress output stream (stdout or file) using gzip.
+Compress output stream (stdout or file). Use -z for gzip, -zz for bzip2, or -zzz for xz.
 .SH INGEST FLAGS
 .TP
 .BI \-c\fR,\fB \-\-connect " connection_string"
@@ -66,6 +66,9 @@ Ingestion mode. Options: "merged" (common columns in single table), "split" (sep
 .TP
 .BI \-C\fR,\fB \-\-conflict " strategy"
 Ingestion conflict strategy: "skip" (default), "replace", or "keep".
+.TP
+.BI \-x\fR,\fB \-\-flat
+Create flat tables repeating common data instead of relational schemas.
 .SH EXAMPLES
 Extract history from the last 3 days in table format:
 .IP

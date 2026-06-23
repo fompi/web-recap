@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-06-24
+
+### Changed
+- Refactored `README.md` to extract database schemas, rationale, and contributing guidelines into dedicated files (`docs/SCHEMA.md`, `docs/MIGRATION.md`, `CONTRIBUTING.md`).
+
+## [0.3.2] - 2026-06-24
+
+### Added
+- Support for `bzip2` and `xz` compression in `web-recap dump` using the `-z` shorthand flag count (e.g., `-z` for gzip, `-zz` for bzip2, `-zzz` for xz).
+
+### Changed
+- Renamed `--tz` flag to `--timezone` and added `-Z` shorthand.
+- Renamed `--db` flag to `--database` (keeps `-d` shorthand).
+- Added `-x` shorthand for the `--flat` ingestion flag.
+
 ## [0.3.1] - 2026-06-24
 
 ### Fixed

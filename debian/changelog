@@ -1,3 +1,17 @@
+web-recap (0.3.3-1) unstable; urgency=medium
+
+  * Refactored `README.md` to extract database schemas, rationale, and contributing guidelines into dedicated files (`docs/SCHEMA.md`, `docs/MIGRATION.md`, `CONTRIBUTING.md`).
+
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 01:50:51 +0200
+
+web-recap (0.3.2-1) unstable; urgency=medium
+
+  * Bump version and document pending issues.
+  * Added support for bzip2 and xz compression.
+  * Standardized CLI flags (--timezone, --database, --flat shorthands).
+
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 01:45:00 +0200
+
 web-recap (0.3.1-1) unstable; urgency=medium
 
   * Fix shorthand flag `-z` not working for dump `--compress`.

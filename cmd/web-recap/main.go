@@ -16,6 +16,9 @@ import (
 	"github.com/rzolkos/web-recap/internal/models"
 	"github.com/rzolkos/web-recap/internal/output"
 	"github.com/rzolkos/web-recap/internal/utils"
+
+	"github.com/dsnet/compress/bzip2"
+	"github.com/ulikunitz/xz"
 )
 
 var (
@@ -29,13 +32,13 @@ var (
 	userFlag         string
 	summary          bool
 	noSummary        bool
-	compress         bool
+	compressCount    int
 	connectStr       string
 	conflictStrategy string
 	modeFlag         string
 	limitFlag        string
 	flatFlag         bool
-	version          = "0.3.1"
+	version          = "0.3.3"
 )
 
 
@@ -53,7 +56,8 @@ var dumpCmd = &cobra.Command{
 	Example: `  web-recap dump
   web-recap dump --browser chrome -f "3 days"
   web-recap dump --from "yesterday" --to "now" --format csv
-  web-recap dump -b safari -f "2026-06-20T10:00:00" -o history.json.gz -z`,
+  web-recap dump -b safari -f "2026-06-20T10:00:00" -o history.json.gz -z
+  web-recap dump -b chrome -o history.csv.bz2 -zz`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runQuery(cmd, false, false)
@@ -123,9 +127,9 @@ func init() {
 	for _, sub := range []*cobra.Command{dumpCmd, statsCmd, ingestCmd} {
 		sub.Flags().StringVarP(&fromFlag, "from", "f", "", "Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)")
 		sub.Flags().StringVarP(&toFlag, "to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601)")
-		sub.Flags().StringVar(&timezone, "tz", "", "Timezone name (e.g. America/New_York, UTC, local)")
+		sub.Flags().StringVarP(&timezone, "timezone", "Z", "", "Timezone name (e.g. America/New_York, UTC, local)")
 		sub.Flags().StringVarP(&browserFlag, "browser", "b", "", "Comma-separated list of browsers (defaults to all)")
-		sub.Flags().StringVarP(&dbFlag, "db", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
+		sub.Flags().StringVarP(&dbFlag, "database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
 		sub.Flags().StringVarP(&userFlag, "user", "u", "", "Retrieve history for another system user")
 		sub.Flags().StringVarP(&limitFlag, "limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
 		sub.Flags().BoolVarP(&summary, "summary", "s", true, "Show summary on stderr")
@@ -133,7 +137,7 @@ func init() {
 	}
 
 	// Dump-specific flags
-	dumpCmd.Flags().BoolVarP(&compress, "compress", "z", false, "Gzip compress output file or stdout")
+	dumpCmd.Flags().CountVarP(&compressCount, "compress", "z", "Compress output: -z (gzip), -zz (bzip2), -zzz (xz)")
 	dumpCmd.Flags().StringVarP(&formatFlag, "format", "F", "table", "Output format (table, csv, json, jsonl)")
 	dumpCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output to file path instead of stdout")
 
@@ -141,7 +145,7 @@ func init() {
 	ingestCmd.Flags().StringVarP(&connectStr, "connect", "c", "", "Database connection string (e.g. mysql://user:pass@host/db) (Required)")
 	ingestCmd.Flags().StringVarP(&conflictStrategy, "conflict", "C", "skip", "Ingestion conflict strategy: skip, replace")
 	ingestCmd.Flags().StringVarP(&modeFlag, "mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
-	ingestCmd.Flags().BoolVar(&flatFlag, "flat", false, "Create flat tables repeating common data instead of relational schemas")
+	ingestCmd.Flags().BoolVarP(&flatFlag, "flat", "x", false, "Create flat tables repeating common data instead of relational schemas")
 	_ = ingestCmd.MarkFlagRequired("connect")
 
 	// List-specific flags
@@ -304,15 +308,31 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 		out = f
 	}
 
-	var gzipWriter *gzip.Writer
-	if compress {
-		gzipWriter = gzip.NewWriter(out)
-		out = gzipWriter
+	var closer io.WriteCloser
+	if compressCount > 0 {
+		if compressCount == 1 {
+			closer = gzip.NewWriter(out)
+			out = closer
+		} else if compressCount == 2 {
+			var err error
+			closer, err = bzip2.NewWriter(out, &bzip2.WriterConfig{Level: bzip2.BestCompression})
+			if err != nil {
+				return fmt.Errorf("failed to create bzip2 writer: %v", err)
+			}
+			out = closer
+		} else {
+			var err error
+			closer, err = xz.NewWriter(out)
+			if err != nil {
+				return fmt.Errorf("failed to create xz writer: %v", err)
+			}
+			out = closer
+		}
 	}
 
 	defer func() {
-		if gzipWriter != nil {
-			gzipWriter.Close()
+		if closer != nil {
+			closer.Close()
 		}
 		if fileToClose != nil {
 			fileToClose.Close()

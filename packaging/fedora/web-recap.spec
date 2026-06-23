@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.3.1
+Version:        0.3.3
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,13 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.3-1
+- Refactored `README.md` to extract database schemas, rationale, and contributing guidelines into dedicated files (`docs/SCHEMA.md`, `docs/MIGRATION.md`, `CONTRIBUTING.md`).
+
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.2-1
+- Bump version and document pending issues.
+- Added support for bzip2 and xz compression.
+- Standardized CLI flags (--timezone, --database, --flat shorthands).
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.1-1
 - Fix `-z` compression flag logic
 - Fix MongoDB `insertedCount` double counting

@@ -58,55 +58,13 @@ You must manually grant **Full Disk Access** permissions to your terminal emulat
 
 ### Build from Source
 
-Requires Go 1.21+
-
-```bash
-git clone https://github.com/robzolkos/web-recap.git
-cd web-recap
-make build
-./web-recap --help
-```
+See the [CONTRIBUTING.md](CONTRIBUTING.md) guide for build instructions and development setup.
 
 ---
 
-## Rationale
+## Rationale & Migration
 
-The CLI interface and database engine of `web-recap` were overhauled to improve usability, prevent data loss, and maintain a clean separation of concerns:
-
-1. **Parameter Simplification (Unified Date/Time)**
-   - *Problem:* Previously, users had to combine 5 different parameters (`--date`, `--start-date`, `--end-date`, `--time`, `--start-time`, `--end-time`) to filter dates and times, which was complex and prone to conflicts.
-   - *Solution:* Unified all 5 parameter options into exactly two flags: `--from` / `-f` and `--to` / `-t`. They accept full ISO8601 timestamps, dates, or relative helpers (`start` / `0` for start of log, `today`, `yesterday`, `now`, and offsets like `5 hours ago`, `3 days`, `30 minutes`). By default, it extracts history from the beginning of "today" up to "now".
-2. **Separation of Concerns via Subcommands**
-   - *Problem:* Commands, printing options, and database connection logic were cluttered together on a single root command.
-   - *Solution:* Split actions into discrete subcommands:
-     - `dump`: Exports history logs (JSON, JSONL, CSV, Table).
-     - `stats`: Analyzes user web activity and outputs rich summaries, active browsing durations, transitions, session metrics, and ASCII activity charts.
-     - `ingest`: Direct database copy script (keeping connection logic out of the print command).
-     - `list`: Helper command to discover active browsers, user profiles, and verify database read permissions (detects macOS Full Disk Access issues).
-3. **Multi-Profile Harvesting**
-   - *Problem:* Most users have multiple profiles (e.g. Work vs Personal). The tool originally searched only for the "Default" profile.
-   - *Solution:* Rewrote browser detection to find all active profiles, extracting and stamping entries with their corresponding `profile` name.
-4. **Relational vs Flat layouts**
-   - *Problem:* Different browsers record different metrics (e.g., Safari logs redirect origins; Chrome logs transition types and visit durations). Normalizing them into a single table causes data loss or results in a sparse table.
-   - *Solution:* Designed two modes via the `--flat` flag:
-     - **Relational mode (default / `--flat=false`):** Common columns are stored in a parent `history` table with an auto-incrementing `id` primary key. Browser-specific fields are stored in child tables (e.g. `history_chrome`) linked using `history_id` with `ON DELETE CASCADE`.
-     - **Flat mode (`--flat=true`):** Denormalizes everything into flat tables repeating the common fields, avoiding relational constraints.
-
----
-
-## Migration Guide (Before vs After)
-
-| Goal / Scenario | Before | After |
-|---|---|---|
-| List profiles | `web-recap list` | `web-recap list` |
-| Extract today's logs | `web-recap` | `web-recap dump` |
-| Specific browser | `web-recap --browser chrome` | `web-recap dump --browser chrome` |
-| Filter by date range | `web-recap --start-date 2025-12-01 --end-date 2025-12-15` | `web-recap dump --from 2025-12-01 --to 2025-12-15` |
-| Hours range | `web-recap --date 2025-12-15 --start-time 12:00 --end-time 13:00` | `web-recap dump --from 2025-12-15T12:00:00 --to 2025-12-15T13:00:00` |
-| Relative offset | (N/A - manually calculate date strings) | `web-recap dump -f "3 days"` |
-| Yesterday to now | (N/A) | `web-recap dump -f yesterday -t now` |
-| Show summary charts | (Console summary printed by default) | `web-recap stats` |
-| Ingest Chrome history | `web-recap --browser chrome --db-path sqlite://hist.db` | `web-recap ingest -c sqlite://hist.db --browser chrome` |
+If you are upgrading from `v0.1.x` or want to understand the architectural design behind the CLI flags and history processing, please check the [Rationale & Migration Guide](docs/MIGRATION.md).
 
 ---
 
@@ -127,6 +85,10 @@ web-recap dump --from "7 days" --format jsonl
 
 # Export a specific date range from Chrome & Firefox to a compressed CSV
 web-recap dump -b chrome,firefox -f 2026-06-01 -t 2026-06-15 -F csv -o history.csv.gz -z
+
+# Compress output using bzip2 (-zz) or xz (-zzz)
+web-recap dump -o history.json.bz2 -zz
+web-recap dump -o history.json.xz -zzz
 ```
 
 ### View Statistics
@@ -135,7 +97,7 @@ web-recap dump -b chrome,firefox -f 2026-06-01 -t 2026-06-15 -F csv -o history.c
 web-recap stats
 
 # Statistics from last 24 hours in America/New_York timezone
-web-recap stats --from "24 hours" --tz America/New_York
+web-recap stats --from "24 hours" --timezone America/New_York
 ```
 
 ---
@@ -161,7 +123,7 @@ web-recap ingest --connect <DSN> [flags]
   - `merged`: Single `history` table containing only common columns.
   - `split`: Browser-specific tables containing common + raw columns.
   - `both`: Populates both the merged table and the browser-specific tables.
-- `--flat` (Default `false`):
+- `-x`, `--flat` (Default `false`):
   - If `false` (relational), uses foreign key references (`history_id`) to link child tables (e.g. `history_chrome`) to the parent `history` table.
   - If `true` (flat), denormalizes tables, repeating common columns in child tables.
 
@@ -176,7 +138,7 @@ web-recap ingest -c sqlite://history_relational.db -M both -f "30 days"
 #### 2. Flat SQLite DB
 Populates flat tables repeating columns:
 ```bash
-web-recap ingest -c sqlite://history_flat.db -M both --flat -f "30 days"
+web-recap ingest -c sqlite://history_flat.db -M both -x -f "30 days"
 ```
 
 #### 3. Ingest into Remote PostgreSQL
@@ -194,74 +156,13 @@ web-recap ingest -c mongodb://localhost:27017/web_history -M both
 
 ## Extended Database Schemas
 
-### Relational Schema (`--flat=false`, `-M both` / default)
-
-```mermaid
-erDiagram
-    history {
-        int id PK "Autoincrement"
-        string browser
-        string profile
-        timestamp timestamp
-        text url
-        text title
-        string domain
-        int visit_count
-    }
-    history_chrome {
-        int history_id PK, FK "ON DELETE CASCADE"
-        int visit_duration
-        int transition
-        int from_visit
-        int segment_id
-        int typed_count
-    }
-    history_firefox {
-        int history_id PK, FK "ON DELETE CASCADE"
-        int from_visit
-        int visit_type
-        int session
-        int frequency
-        int typed
-    }
-    history_safari {
-        int history_id PK, FK "ON DELETE CASCADE"
-        int redirect_source
-        int redirect_destination
-        int origin
-        int generation_type
-        int load_successful
-        int http_non_get
-        int synthesized
-    }
-    history ||--o| history_chrome : references
-    history ||--o| history_firefox : references
-    history ||--o| history_safari : references
-```
+If you need detailed information about the tables structure for database ingestion (including relational ER diagrams), please see the [Database Schemas Documentation](docs/SCHEMA.md).
 
 ---
 
-## Development
+## Contributing & Development
 
-```bash
-# Run tests
-go test -v ./...
-
-# Build binary
-make build
-```
-
-### Release Process
-
-`CHANGELOG.md` and `VERSION` act as the single sources of truth for the project. 
-To release a new version, **do not manually edit** `Makefile`, `main.go`, or packaging files. Instead:
-
-1. Update `CHANGELOG.md` with the new version section under `## [Unreleased]`.
-2. Run the automated bump script to synchronize all project files:
-   ```bash
-   go run scripts/bump.go <new_version>
-   ```
-3. Commit the changes.
+We welcome issues and pull requests! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to set up your environment, run tests, and execute the automated release process.
 
 ---
 
