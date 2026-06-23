@@ -21,8 +21,8 @@ vendor/
 
 # Build artifacts
 dist/
-web-recap
-web-recap.exe
+/web-recap
+/web-recap.exe
 
 # IDE specific files
 .vscode/

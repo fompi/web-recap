@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/rzolkos/web-recap/internal/models"
 )
 
 // HasColumn checks if a column exists in a given table
@@ -97,45 +95,6 @@ func ExtractDomain(urlStr string) string {
 	}
 
 	return urlStr
-}
-
-// FilterByDateRange filters history entries by date range
-func FilterByDateRange(entries []interface{}, startDate, endDate time.Time) []interface{} {
-	if startDate.IsZero() && endDate.IsZero() {
-		return entries
-	}
-
-	// Normalize dates to start/end of day in UTC
-	if !startDate.IsZero() {
-		startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
-	}
-
-	if !endDate.IsZero() {
-		endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, time.UTC)
-	}
-
-	var filtered []interface{}
-	for _, entry := range entries {
-		var entryTime time.Time
-		switch e := entry.(type) {
-		case models.HistoryEntry:
-			entryTime = e.Timestamp
-		case *models.HistoryEntry:
-			entryTime = e.Timestamp
-		}
-
-		if !entryTime.IsZero() {
-			if !startDate.IsZero() && entryTime.Before(startDate) {
-				continue
-			}
-			if !endDate.IsZero() && entryTime.After(endDate) {
-				continue
-			}
-		}
-		filtered = append(filtered, entry)
-	}
-
-	return filtered
 }
 
 // CopyDatabaseWithWAL copies the main database file and its auxiliary SQLite files (-wal, -shm, -journal)

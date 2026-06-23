@@ -114,12 +114,13 @@ func ingestSQL(driverName, dsn string, entries []models.HistoryEntry, conflictSt
 			}
 
 			res, err := tx.Exec(query, args...)
-			if err == nil {
-				rows, _ := res.RowsAffected()
-				if rows > 0 {
-					success = true
-					insertedParent = true
-				}
+			if err != nil {
+				return insertedCount, fmt.Errorf("failed to insert history entry: %w", err)
+			}
+			rows, _ := res.RowsAffected()
+			if rows > 0 {
+				success = true
+				insertedParent = true
 			}
 		}
 
@@ -133,7 +134,13 @@ func ingestSQL(driverName, dsn string, entries []models.HistoryEntry, conflictSt
 				// Relational mode child insertion
 				if insertedParent || conflictStrategy == "replace" {
 					parentID, err := getParentID(tx, driverName, entry)
-					if err == nil && parentID > 0 {
+					if err != nil {
+						if err == sql.ErrNoRows {
+							continue
+						}
+						return insertedCount, fmt.Errorf("failed to get parent ID: %w", err)
+					}
+					if parentID > 0 {
 						switch getBrowserClass(entry.Browser) {
 						case "firefox":
 							query, args = buildSQLInsertChildFirefox(driverName, tbl, parentID, entry, conflictStrategy)
@@ -143,11 +150,12 @@ func ingestSQL(driverName, dsn string, entries []models.HistoryEntry, conflictSt
 							query, args = buildSQLInsertChildChrome(driverName, tbl, parentID, entry, conflictStrategy)
 						}
 						res, err := tx.Exec(query, args...)
-						if err == nil {
-							rows, _ := res.RowsAffected()
-							if rows > 0 {
-								success = true
-							}
+						if err != nil {
+							return insertedCount, fmt.Errorf("failed to insert child entry: %w", err)
+						}
+						rows, _ := res.RowsAffected()
+						if rows > 0 {
+							success = true
 						}
 					}
 				}
@@ -162,11 +170,12 @@ func ingestSQL(driverName, dsn string, entries []models.HistoryEntry, conflictSt
 					query, args = buildSQLInsertChrome(driverName, tbl, entry, conflictStrategy)
 				}
 				res, err := tx.Exec(query, args...)
-				if err == nil {
-					rows, _ := res.RowsAffected()
-					if rows > 0 {
-						success = true
-					}
+				if err != nil {
+					return insertedCount, fmt.Errorf("failed to insert child entry: %w", err)
+				}
+				rows, _ := res.RowsAffected()
+				if rows > 0 {
+					success = true
 				}
 			}
 		}

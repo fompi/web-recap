@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.2.3
+Version:        0.2.4
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,10 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.4-1
+- Fix Firefox Windows profile path, add windows path tests, and propagate db ingest errors
+- Clean up dead code, synchronize makefile version, and use cases.Title instead of deprecated strings.Title
+
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.3-1
 - Fix Safari profile detection standard path on macOS
 - Copy WAL/journal files alongside databases to capture uncommitted history and fix missing entries

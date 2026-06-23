@@ -47,28 +47,6 @@ func Query(b *browser.Browser, startDate, endDate time.Time) ([]models.HistoryEn
 	return entries, nil
 }
 
-// QueryMultipleBrowsers retrieves history from all detected browsers
-func QueryMultipleBrowsers(detector *browser.Detector, startDate, endDate time.Time) ([]models.HistoryEntry, error) {
-	var allEntries []models.HistoryEntry
-
-	detectedBrowsers := detector.Detect()
-	for _, b := range detectedBrowsers {
-		browser := b // Copy to avoid pointer issues
-		entries, err := Query(&browser, startDate, endDate)
-		if err != nil {
-			// Log error but continue with other browsers
-			continue
-		}
-		allEntries = append(allEntries, entries...)
-	}
-
-	// Sort all entries by timestamp descending
-	sort.Slice(allEntries, func(i, j int) bool {
-		return allEntries[i].Timestamp.After(allEntries[j].Timestamp)
-	})
-
-	return allEntries, nil
-}
 
 // SortEntriesDescending sorts a slice of HistoryEntry objects descending by timestamp
 func SortEntriesDescending(entries []models.HistoryEntry) {

@@ -1,3 +1,10 @@
+web-recap (0.2.4-1) unstable; urgency=medium
+
+  * Fix Firefox Windows profile path, add windows path tests, and propagate db ingest errors.
+  * Clean up dead code, synchronize makefile version, and use cases.Title instead of deprecated strings.Title.
+
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 22:15:00 +0200
+
 web-recap (0.2.3-1) unstable; urgency=medium
 
   * Fix Safari profile detection standard path on macOS.

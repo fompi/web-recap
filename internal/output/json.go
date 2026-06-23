@@ -30,22 +30,6 @@ func FormatJSON(w io.Writer, entries []models.HistoryEntry, browser string, star
 	return encoder.Encode(report)
 }
 
-// FormatJSONCompact writes history report as compact JSON to the given writer
-func FormatJSONCompact(w io.Writer, entries []models.HistoryEntry, browser string, startDate, endDate time.Time) error {
-	report := models.HistoryReport{
-		Browser:      browser,
-		StartDate:    startDate,
-		EndDate:      endDate,
-		TotalEntries: len(entries),
-		Entries:      entries,
-	}
-
-	encoder := json.NewEncoder(w)
-	encoder.SetEscapeHTML(false)
-
-	return encoder.Encode(report)
-}
-
 // FormatJSONLines writes history entries as JSON lines (one per line) to the given writer
 func FormatJSONLines(w io.Writer, entries []models.HistoryEntry) error {
 	encoder := json.NewEncoder(w)

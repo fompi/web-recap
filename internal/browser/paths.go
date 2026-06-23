@@ -74,32 +74,42 @@ func getDarwinPath(home string, browserType Type) (string, error) {
 }
 
 func getWindowsPath(home string, browserType Type) (string, error) {
-	var appData string
+	var appDataLocal string
+	var appDataRoaming string
+
 	if home != "" {
-		appData = filepath.Join(home, "AppData", "Local")
+		appDataLocal = filepath.Join(home, "AppData", "Local")
+		appDataRoaming = filepath.Join(home, "AppData", "Roaming")
 	} else {
-		appData = os.Getenv("LOCALAPPDATA")
-		if appData == "" {
+		appDataLocal = os.Getenv("LOCALAPPDATA")
+		appDataRoaming = os.Getenv("APPDATA")
+
+		if appDataLocal == "" || appDataRoaming == "" {
 			var err error
 			home, err = os.UserHomeDir()
 			if err != nil {
 				return "", err
 			}
-			appData = filepath.Join(home, "AppData", "Local")
+			if appDataLocal == "" {
+				appDataLocal = filepath.Join(home, "AppData", "Local")
+			}
+			if appDataRoaming == "" {
+				appDataRoaming = filepath.Join(home, "AppData", "Roaming")
+			}
 		}
 	}
 
 	switch browserType {
 	case Chrome:
-		return filepath.Join(appData, `Google\Chrome\User Data\Default\History`), nil
+		return filepath.Join(appDataLocal, "Google", "Chrome", "User Data", "Default", "History"), nil
 	case Chromium:
-		return filepath.Join(appData, `Chromium\User Data\Default\History`), nil
+		return filepath.Join(appDataLocal, "Chromium", "User Data", "Default", "History"), nil
 	case Edge:
-		return filepath.Join(appData, `Microsoft\Edge\User Data\Default\History`), nil
+		return filepath.Join(appDataLocal, "Microsoft", "Edge", "User Data", "Default", "History"), nil
 	case Brave:
-		return filepath.Join(appData, `BraveSoftware\Brave-Browser\User Data\Default\History`), nil
+		return filepath.Join(appDataLocal, "BraveSoftware", "Brave-Browser", "User Data", "Default", "History"), nil
 	case Firefox:
-		return filepath.Join(appData, "Mozilla/Firefox"), nil
+		return filepath.Join(appDataRoaming, "Mozilla", "Firefox"), nil
 	case Safari:
 		// Safari not available on Windows
 		return "", ErrBrowserNotAvailable

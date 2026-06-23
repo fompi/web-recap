@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // DomainStat stores counts for a domain
@@ -39,7 +41,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	for _, entry := range entries {
 		domainCounts[entry.Domain]++
 		urlCounts[entry.URL]++
-		browserKey := fmt.Sprintf("%s (%s)", strings.Title(entry.Browser), entry.Profile)
+		browserKey := fmt.Sprintf("%s (%s)", cases.Title(language.Und).String(entry.Browser), entry.Profile)
 		browserCounts[browserKey]++
 
 		// Hour in specified location

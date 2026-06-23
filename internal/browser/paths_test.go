@@ -105,7 +105,51 @@ func TestGetDarwinPath(t *testing.T) {
 	}
 }
 
-func TestExtractDomain(t *testing.T) {
-	// Note: ExtractDomain is in the database package, so we'd need to import it there
-	// For now, this is a placeholder for domain extraction tests
+func TestGetWindowsPath(t *testing.T) {
+	tests := []struct {
+		name      string
+		browser   Type
+		expectErr bool
+		contains  string
+	}{
+		{
+			name:     "Chrome",
+			browser:  Chrome,
+			contains: "AppData/Local/Google/Chrome",
+		},
+		{
+			name:     "Chromium",
+			browser:  Chromium,
+			contains: "AppData/Local/Chromium",
+		},
+		{
+			name:     "Firefox",
+			browser:  Firefox,
+			contains: "AppData/Roaming/Mozilla/Firefox",
+		},
+		{
+			name:      "Safari not available",
+			browser:   Safari,
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := "/Users/testuser"
+			path, err := getWindowsPath(home, tt.browser)
+
+			if tt.expectErr && err == nil {
+				t.Errorf("expected error but got none")
+			}
+
+			if !tt.expectErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			if !tt.expectErr && !strings.Contains(filepath.ToSlash(path), tt.contains) {
+				t.Errorf("expected path to contain %q, got %q", tt.contains, path)
+			}
+		})
+	}
 }
