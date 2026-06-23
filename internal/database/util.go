@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/rzolkos/web-recap/internal/models"
 )
 
 // HasColumn checks if a column exists in a given table
@@ -100,7 +102,7 @@ func FilterByDateRange(entries []interface{}, startDate, endDate time.Time) []in
 		return entries
 	}
 
-	// Normalize dates to start of day
+	// Normalize dates to start/end of day in UTC
 	if !startDate.IsZero() {
 		startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, time.UTC)
 	}
@@ -111,6 +113,22 @@ func FilterByDateRange(entries []interface{}, startDate, endDate time.Time) []in
 
 	var filtered []interface{}
 	for _, entry := range entries {
+		var entryTime time.Time
+		switch e := entry.(type) {
+		case models.HistoryEntry:
+			entryTime = e.Timestamp
+		case *models.HistoryEntry:
+			entryTime = e.Timestamp
+		}
+
+		if !entryTime.IsZero() {
+			if !startDate.IsZero() && entryTime.Before(startDate) {
+				continue
+			}
+			if !endDate.IsZero() && entryTime.After(endDate) {
+				continue
+			}
+		}
 		filtered = append(filtered, entry)
 	}
 

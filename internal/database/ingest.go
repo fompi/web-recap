@@ -781,7 +781,7 @@ func buildSQLInsertFlat(driver, tbl string, e models.HistoryEntry, conflict stri
 		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, redirect_source = EXCLUDED.redirect_source", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed, redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
@@ -789,7 +789,7 @@ func buildSQLInsertFlat(driver, tbl string, e models.HistoryEntry, conflict stri
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, redirect_source = excluded.redirect_source", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed, redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -797,7 +797,7 @@ func buildSQLInsertFlat(driver, tbl string, e models.HistoryEntry, conflict stri
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), redirect_source = VALUES(redirect_source)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed), redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -817,7 +817,7 @@ func buildSQLInsertChrome(driver, tbl string, e models.HistoryEntry, conflict st
 		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
@@ -825,7 +825,7 @@ func buildSQLInsertChrome(driver, tbl string, e models.HistoryEntry, conflict st
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -833,7 +833,7 @@ func buildSQLInsertChrome(driver, tbl string, e models.HistoryEntry, conflict st
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -853,7 +853,7 @@ func buildSQLInsertFirefox(driver, tbl string, e models.HistoryEntry, conflict s
 		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, visit_count = EXCLUDED.visit_count, visit_type = EXCLUDED.visit_type", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, from_visit = EXCLUDED.from_visit, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
@@ -861,7 +861,7 @@ func buildSQLInsertFirefox(driver, tbl string, e models.HistoryEntry, conflict s
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, visit_count = excluded.visit_count, visit_type = excluded.visit_type", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, from_visit = excluded.from_visit, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -869,7 +869,7 @@ func buildSQLInsertFirefox(driver, tbl string, e models.HistoryEntry, conflict s
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), visit_count = VALUES(visit_count), visit_type = VALUES(visit_type)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), from_visit = VALUES(from_visit), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -890,7 +890,7 @@ func buildSQLInsertSafari(driver, tbl string, e models.HistoryEntry, conflict st
 		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, visit_count = EXCLUDED.visit_count, redirect_source = EXCLUDED.redirect_source", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
@@ -898,7 +898,7 @@ func buildSQLInsertSafari(driver, tbl string, e models.HistoryEntry, conflict st
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, visit_count = excluded.visit_count, redirect_source = excluded.redirect_source", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -906,7 +906,7 @@ func buildSQLInsertSafari(driver, tbl string, e models.HistoryEntry, conflict st
 		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), visit_count = VALUES(visit_count), redirect_source = VALUES(redirect_source)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}

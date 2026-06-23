@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -139,6 +140,9 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 func (h *ChromeHandler) copyDatabase() (string, error) {
 	src, err := os.Open(h.dbPath)
 	if err != nil {
+		if os.IsPermission(err) {
+			return "", fmt.Errorf("permission denied reading Chrome history database: please check file permissions or grant Full Disk Access to your terminal/application (path: %s)", h.dbPath)
+		}
 		return "", err
 	}
 	defer src.Close()

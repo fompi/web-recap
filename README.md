@@ -37,6 +37,21 @@ curl -L https://github.com/robzolkos/web-recap/releases/latest/download/web-reca
 chmod +x ~/.local/bin/web-recap
 ```
 
+### macOS Permissions (Full Disk Access)
+
+On macOS 10.14 (Mojave) and later, browser history databases (especially Safari's `History.db`) are protected by system security. If you attempt to query Safari and get a permission error:
+```
+permission denied reading Safari history database: please grant Full Disk Access...
+```
+
+You must manually grant **Full Disk Access** permissions to your terminal emulator (e.g., Terminal, iTerm) or IDE:
+1. Open **System Settings** on macOS.
+2. Navigate to **Privacy & Security** > **Full Disk Access**.
+3. Enable (toggle ON) the checkbox next to your Terminal/iTerm application.
+4. Restart your terminal session.
+
+---
+
 ### Build from Source
 
 Requires Go 1.21+

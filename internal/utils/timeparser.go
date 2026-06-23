@@ -55,12 +55,10 @@ func ParseTimeHelper(val string, now time.Time, loc *time.Location) (time.Time, 
 		"2006-01-02",
 	}
 
-	// Replace space with T to handle standard ISO8601 formatting variations
+	// Replace space with T to handle standard ISO8601 formatting variations,
+	// and normalize lowercase 't' to uppercase 'T'.
 	normalizedVal := strings.ReplaceAll(val, " ", "T")
-	// If it doesn't contain a timezone suffix, try replacing lower 't' with upper 'T'
-	if !strings.Contains(normalizedVal, "Z") && !strings.Contains(normalizedVal, "+") && strings.Count(normalizedVal, "-") >= 2 {
-		normalizedVal = strings.ReplaceAll(val, "t", "T")
-	}
+	normalizedVal = strings.ReplaceAll(normalizedVal, "t", "T")
 
 	for _, layout := range layouts {
 		// If layout has timezone specifiers, parse with Parse

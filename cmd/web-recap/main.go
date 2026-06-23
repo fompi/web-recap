@@ -35,8 +35,9 @@ var (
 	modeFlag         string
 	limitFlag        string
 	flatFlag         bool
-	version          = "0.2.1"
+	version          = "0.2.2"
 )
+
 
 var rootCmd = &cobra.Command{
 	Use:   "web-recap",

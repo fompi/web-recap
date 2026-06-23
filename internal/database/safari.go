@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
@@ -199,6 +200,9 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 func (h *SafariHandler) copyDatabase() (string, error) {
 	src, err := os.Open(h.dbPath)
 	if err != nil {
+		if os.IsPermission(err) || strings.Contains(err.Error(), "operation not permitted") {
+			return "", fmt.Errorf("permission denied reading Safari history database: please grant Full Disk Access to your terminal or application in macOS System Settings > Privacy & Security > Full Disk Access (path: %s)", h.dbPath)
+		}
 		return "", err
 	}
 	defer src.Close()

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rzolkos/web-recap/internal/models"
 	_ "modernc.org/sqlite"
 )
 
@@ -163,44 +164,46 @@ func TestFilterByDateRange(t *testing.T) {
 	startDate := time.Date(2025, 12, 15, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2025, 12, 16, 0, 0, 0, 0, time.UTC)
 
-	tests := []struct {
-		name       string
-		startDate  time.Time
-		endDate    time.Time
-		inputLen   int
-		minOutputLen int
-	}{
-		{
-			name:         "No date filter",
-			startDate:    time.Time{},
-			endDate:      time.Time{},
-			inputLen:     5,
-			minOutputLen: 5,
-		},
-		{
-			name:         "With date range",
-			startDate:    startDate,
-			endDate:      endDate,
-			inputLen:     5,
-			minOutputLen: 0,
-		},
+	entries := []interface{}{
+		models.HistoryEntry{Timestamp: time.Date(2025, 12, 14, 12, 0, 0, 0, time.UTC)}, // Out (before)
+		models.HistoryEntry{Timestamp: time.Date(2025, 12, 15, 12, 0, 0, 0, time.UTC)}, // In
+		models.HistoryEntry{Timestamp: time.Date(2025, 12, 16, 12, 0, 0, 0, time.UTC)}, // In
+		models.HistoryEntry{Timestamp: time.Date(2025, 12, 17, 12, 0, 0, 0, time.UTC)}, // Out (after)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create dummy entries
-			entries := make([]interface{}, tt.inputLen)
-			for i := range entries {
-				entries[i] = nil
-			}
+	t.Run("No date filter", func(t *testing.T) {
+		result := FilterByDateRange(entries, time.Time{}, time.Time{})
+		if len(result) != 4 {
+			t.Errorf("expected 4 entries, got %d", len(result))
+		}
+	})
 
-			result := FilterByDateRange(entries, tt.startDate, tt.endDate)
+	t.Run("With start and end date range", func(t *testing.T) {
+		result := FilterByDateRange(entries, startDate, endDate)
+		if len(result) != 2 {
+			t.Errorf("expected 2 entries, got %d", len(result))
+		}
+		
+		e1 := result[0].(models.HistoryEntry)
+		e2 := result[1].(models.HistoryEntry)
+		if e1.Timestamp.Day() != 15 || e2.Timestamp.Day() != 16 {
+			t.Errorf("unexpected elements kept in range")
+		}
+	})
 
-			if len(result) < tt.minOutputLen {
-				t.Errorf("expected at least %d entries, got %d", tt.minOutputLen, len(result))
-			}
-		})
-	}
+	t.Run("Only start date", func(t *testing.T) {
+		result := FilterByDateRange(entries, startDate, time.Time{})
+		if len(result) != 3 {
+			t.Errorf("expected 3 entries, got %d", len(result))
+		}
+	})
+
+	t.Run("Only end date", func(t *testing.T) {
+		result := FilterByDateRange(entries, time.Time{}, endDate)
+		if len(result) != 3 {
+			t.Errorf("expected 3 entries, got %d", len(result))
+		}
+	})
 }
 
 func TestHasColumn(t *testing.T) {

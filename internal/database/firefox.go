@@ -180,6 +180,9 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 func (h *FirefoxHandler) copyDatabase() (string, error) {
 	src, err := os.Open(h.dbPath)
 	if err != nil {
+		if os.IsPermission(err) {
+			return "", fmt.Errorf("permission denied reading Firefox history database: please check file permissions or grant Full Disk Access to your terminal/application (path: %s)", h.dbPath)
+		}
 		return "", err
 	}
 	defer src.Close()
