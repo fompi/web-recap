@@ -35,7 +35,7 @@ var (
 	modeFlag         string
 	limitFlag        string
 	flatFlag         bool
-	version          = "0.3.0"
+	version          = "0.3.1"
 )
 
 
@@ -133,13 +133,13 @@ func init() {
 	}
 
 	// Dump-specific flags
-	dumpCmd.Flags().StringVarP(&formatFlag, "format", "F", "table", "Output format: table, json, jsonl, csv")
-	dumpCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
-	dumpCmd.Flags().BoolVar(&compress, "compress", false, "Gzip compress output file or stdout")
+	dumpCmd.Flags().BoolVarP(&compress, "compress", "z", false, "Gzip compress output file or stdout")
+	dumpCmd.Flags().StringVarP(&formatFlag, "format", "F", "table", "Output format (table, csv, json, jsonl)")
+	dumpCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output to file path instead of stdout")
 
 	// Ingest-specific flags
-	ingestCmd.Flags().StringVarP(&connectStr, "connect", "c", "", "Database DSN/connection string for ingestion (required)")
-	ingestCmd.Flags().StringVarP(&conflictStrategy, "conflict", "C", "skip", "Ingestion conflict strategy: skip, replace, keep")
+	ingestCmd.Flags().StringVarP(&connectStr, "connect", "c", "", "Database connection string (e.g. mysql://user:pass@host/db) (Required)")
+	ingestCmd.Flags().StringVarP(&conflictStrategy, "conflict", "C", "skip", "Ingestion conflict strategy: skip, replace")
 	ingestCmd.Flags().StringVarP(&modeFlag, "mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
 	ingestCmd.Flags().BoolVar(&flatFlag, "flat", false, "Create flat tables repeating common data instead of relational schemas")
 	_ = ingestCmd.MarkFlagRequired("connect")

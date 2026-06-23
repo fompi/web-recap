@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-24
+
+### Fixed
+- Fixed shorthand flag `-z` not working for dump `--compress`.
+- Fixed MongoDB ingestion counting bug that double-counted updated records in bulk write mode.
+- Removed confusing `keep` alias from ingestion conflict strategy list; added strict validation to reject unknown strategies instead of silently falling back to defaults.
+
 ## [0.3.0] - 2026-06-23
 
 ### Added

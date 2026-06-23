@@ -28,6 +28,9 @@ func Ingest(connectStr string, entries []models.HistoryEntry, conflictStrategy s
 	if conflictStrategy == "" {
 		conflictStrategy = "skip"
 	}
+	if conflictStrategy != "skip" && conflictStrategy != "replace" {
+		return 0, fmt.Errorf("invalid conflict strategy: %s. Must be 'skip' or 'replace'", conflictStrategy)
+	}
 
 	mode = strings.ToLower(strings.TrimSpace(mode))
 	switch mode {
@@ -1108,7 +1111,7 @@ func ingestMongoDB(ctx context.Context, uri string, entries []models.HistoryEntr
 
 		var model mongo.WriteModel
 		switch conflictStrategy {
-		case "skip", "keep":
+		case "skip":
 			model = mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(bson.D{{Key: "$setOnInsert", Value: doc}}).SetUpsert(true)
 		case "replace":
 			model = mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(bson.D{{Key: "$set", Value: doc}}).SetUpsert(true)
@@ -1125,14 +1128,11 @@ func ingestMongoDB(ctx context.Context, uri string, entries []models.HistoryEntr
 			coll := db.Collection(collName)
 			res, err := coll.BulkWrite(ctx, modelsList, options.BulkWrite().SetOrdered(false))
 			if err == nil && res != nil {
-				// MongoDB upserts count towards UpsertedCount and ModifiedCount
-				insertedCount += int(res.UpsertedCount) + int(res.ModifiedCount) + int(res.MatchedCount)
+				insertedCount += int(res.UpsertedCount) + int(res.MatchedCount)
 			}
 		}
 	}
 
-	// We return the average successfully updated collections count or total processed entries
-	// For MongoDB, returning the count of entries processed is a clean metric
 	if insertedCount > len(entries) {
 		return len(entries), nil
 	}

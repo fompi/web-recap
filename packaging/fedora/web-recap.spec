@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.3.0
+Version:        0.3.1
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,10 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.1-1
+- Fix `-z` compression flag logic
+- Fix MongoDB `insertedCount` double counting
+- Remove confusing `keep` alias and enforce conflict strategy validation
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.0-1
 - Pre-flight database permission verification checks for Chrome, Firefox, and Safari, indicating access status (Readable, Access Denied, File Missing).
 - Proactive macOS Full Disk Access diagnostics warning on standard error.
