@@ -74,7 +74,8 @@ func main() {
 		if strings.HasPrefix(trimmed, "## [") {
 			break
 		}
-		notesBuilder.WriteString(line + "\n")
+		notesBuilder.WriteString(line)
+		notesBuilder.WriteByte('\n')
 	}
 	notes := notesBuilder.String()
 
@@ -158,7 +159,9 @@ func main() {
 	rfcDate := time.Now().Format("Mon, 02 Jan 2006 15:04:05 -0700")
 	var debBullets strings.Builder
 	for _, bp := range bulletPoints {
-		debBullets.WriteString("  * " + bp + "\n")
+		debBullets.WriteString("  * ")
+		debBullets.WriteString(bp)
+		debBullets.WriteByte('\n')
 	}
 
 	debEntry := fmt.Sprintf(
@@ -189,7 +192,9 @@ func main() {
 	fedoraDate := time.Now().Format("Mon Jan 02 2006")
 	var fedoraBullets strings.Builder
 	for _, bp := range bulletPoints {
-		fedoraBullets.WriteString("- " + bp + "\n")
+		fedoraBullets.WriteString("- ")
+		fedoraBullets.WriteString(bp)
+		fedoraBullets.WriteByte('\n')
 	}
 
 	fedoraChangelogEntry := fmt.Sprintf(
