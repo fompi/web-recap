@@ -39,7 +39,11 @@ chmod +x ~/.local/bin/web-recap
 
 ### macOS Permissions (Full Disk Access)
 
-On macOS 10.14 (Mojave) and later, browser history databases (especially Safari's `History.db`) are protected by system security. If you attempt to query Safari and get a permission error:
+On macOS 10.14 (Mojave) and later, browser history databases (especially Safari's `History.db`) are protected by system security.
+
+The `web-recap list` command automatically runs checks on each profile's database file and annotates its state (e.g. `[Readable]` or `[Access Denied (requires Full Disk Access)]`) to help you diagnose access status.
+
+If you attempt to query Safari and get a permission error:
 ```
 permission denied reading Safari history database: please grant Full Disk Access...
 ```
@@ -76,9 +80,9 @@ The CLI interface and database engine of `web-recap` were overhauled to improve 
    - *Problem:* Commands, printing options, and database connection logic were cluttered together on a single root command.
    - *Solution:* Split actions into discrete subcommands:
      - `dump`: Exports history logs (JSON, JSONL, CSV, Table).
-     - `stats`: Analyzes user web activity and outputs summaries and ASCII bar charts.
+     - `stats`: Analyzes user web activity and outputs rich summaries, active browsing durations, transitions, session metrics, and ASCII activity charts.
      - `ingest`: Direct database copy script (keeping connection logic out of the print command).
-     - `list`: Helper command to discover active browsers and user profiles.
+     - `list`: Helper command to discover active browsers, user profiles, and verify database read permissions (detects macOS Full Disk Access issues).
 3. **Multi-Profile Harvesting**
    - *Problem:* Most users have multiple profiles (e.g. Work vs Personal). The tool originally searched only for the "Default" profile.
    - *Solution:* Rewrote browser detection to find all active profiles, extracting and stamping entries with their corresponding `profile` name.

@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.2.4
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,12 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.0-1
+- Pre-flight database permission verification checks for Chrome, Firefox, and Safari, indicating access status (Readable, Access Denied, File Missing).
+- Proactive macOS Full Disk Access diagnostics warning on standard error.
+- Rich CLI statistics report including active browsing duration analysis (Chrome), unified navigation transition mapping, sessionization (grouping visits by <30min inactivity), and weekly distribution charts.
+- Firefox places database query checks for the correct `frecency` column instead of `frequency`.
+
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.4-1
 - Fix Firefox Windows profile path, add windows path tests, and propagate db ingest errors
 - Clean up dead code, synchronize makefile version, and use cases.Title instead of deprecated strings.Title

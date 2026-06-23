@@ -35,7 +35,7 @@ var (
 	modeFlag         string
 	limitFlag        string
 	flatFlag         bool
-	version          = "0.2.4"
+	version          = "0.3.0"
 )
 
 

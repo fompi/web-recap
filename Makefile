@@ -1,7 +1,7 @@
 .PHONY: build build-all test clean install help
 
 # Variables
-VERSION ?= 0.2.4
+VERSION ?= 0.3.0
 BINARY_NAME := web-recap
 DIST_DIR := dist
 GO := go

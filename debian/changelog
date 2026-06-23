@@ -1,3 +1,12 @@
+web-recap (0.3.0-1) unstable; urgency=medium
+
+  * Pre-flight database permission verification checks for Chrome, Firefox, and Safari, indicating access status (Readable, Access Denied, File Missing).
+  * Proactive macOS Full Disk Access diagnostics warning on standard error.
+  * Rich CLI statistics report including active browsing duration analysis (Chrome), unified navigation transition mapping, sessionization (grouping visits by <30min inactivity), and weekly distribution charts.
+  * Firefox places database query checks for the correct `frecency` column instead of `frequency`.
+
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 22:56:19 +0200
+
 web-recap (0.2.4-1) unstable; urgency=medium
 
   * Fix Firefox Windows profile path, add windows path tests, and propagate db ingest errors.

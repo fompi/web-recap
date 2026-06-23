@@ -77,7 +77,9 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 	}
 
 	frequencyExpr := "0 as frequency"
-	if hasCol("moz_places", "frequency") {
+	if hasCol("moz_places", "frecency") {
+		frequencyExpr = "COALESCE(p.frecency, 0) as frequency"
+	} else if hasCol("moz_places", "frequency") {
 		frequencyExpr = "COALESCE(p.frequency, 0) as frequency"
 	}
 
