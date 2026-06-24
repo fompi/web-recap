@@ -60,6 +60,23 @@ You must manually grant **Full Disk Access** permissions to your terminal emulat
 
 See the [CONTRIBUTING.md](CONTRIBUTING.md) guide for build instructions and development setup.
 
+#### Binary size variants
+
+The default build includes all output backends (SQLite, PostgreSQL, MySQL, MongoDB). If you only need SQLite output, you can build a lean binary that is ~46% smaller by excluding the optional backends:
+
+```bash
+# Full build (~16 MB) — all ingest backends included
+make build
+
+# Lean build (~8.7 MB) — SQLite ingest output only; browser reading is unaffected
+make build-lean
+
+# Or manually with go build
+go build -tags nomongo,nomysql,nopq -ldflags="-s -w" -o web-recap ./cmd/web-recap
+```
+
+Browser *reading* always uses SQLite (Chrome, Firefox, Safari, Edge, Brave, Vivaldi all store their history in SQLite files) and is never affected by these tags. The tags only control which *output* databases are available in the `ingest` subcommand.
+
 ---
 
 ## Rationale & Migration

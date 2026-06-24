@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	_ "modernc.org/sqlite"
 )
 
 // Detector detects available browsers on the system

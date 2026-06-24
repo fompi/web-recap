@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
-	_ "modernc.org/sqlite"
 )
 
 // SafariHandler handles Safari browser history

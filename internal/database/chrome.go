@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
-	_ "modernc.org/sqlite"
 )
 
 // ChromeHandler handles Chrome/Chromium/Edge browser history

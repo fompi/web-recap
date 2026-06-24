@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
 )
 
 func ingestSQL(driverName, dsn string, entries []models.HistoryEntry, conflictStrategy, mode string, flat bool) (int, error) {
