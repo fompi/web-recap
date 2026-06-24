@@ -49,13 +49,16 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 - Refactored `README.md` to extract database schemas, rationale, and contributing guidelines into dedicated files (`docs/SCHEMA.md`, `docs/MIGRATION.md`, `CONTRIBUTING.md`).
 
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.2-1
-- Bump version and document pending issues.
-- Added support for bzip2 and xz compression.
-- Standardized CLI flags (--timezone, --database, --flat shorthands).
+- Support for `bzip2` and `xz` compression in `web-recap dump` using the `-z` shorthand flag count (e.g., `-z` for gzip, `-zz` for bzip2, `-zzz` for xz).
+- Renamed `--tz` flag to `--timezone` and added `-Z` shorthand.
+- Renamed `--db` flag to `--database` (keeps `-d` shorthand).
+- Added `-x` shorthand for the `--flat` ingestion flag.
+
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.1-1
-- Fix `-z` compression flag logic
-- Fix MongoDB `insertedCount` double counting
-- Remove confusing `keep` alias and enforce conflict strategy validation
+- Fixed shorthand flag `-z` not working for dump `--compress`.
+- Fixed MongoDB ingestion counting bug that double-counted updated records in bulk write mode.
+- Removed confusing `keep` alias from ingestion conflict strategy list; added strict validation to reject unknown strategies instead of silently falling back to defaults.
+
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.0-1
 - Pre-flight database permission verification checks for Chrome, Firefox, and Safari, indicating access status (Readable, Access Denied, File Missing).
 - Proactive macOS Full Disk Access diagnostics warning on standard error.
@@ -63,18 +66,27 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 - Firefox places database query checks for the correct `frecency` column instead of `frequency`.
 
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.4-1
-- Fix Firefox Windows profile path, add windows path tests, and propagate db ingest errors
-- Clean up dead code, synchronize makefile version, and use cases.Title instead of deprecated strings.Title
+- Firefox Windows profile path detection.
+- Propagation of database ingestion errors to parent command.
+- Replaced deprecated `strings.Title` with `cases.Title`.
 
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.3-1
-- Fix Safari profile detection standard path on macOS
-- Copy WAL/journal files alongside databases to capture uncommitted history and fix missing entries
+- Safari profile detection standard path on macOS.
+- Copy WAL/journal auxiliary files alongside databases to capture uncheckpointed database changes.
 
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.2-1
-- Fix SQL ingest replace queries, date range filter helper, time parser, and add Safari permission guidance
+- SQL ingest replace queries.
+- Date range filter relative keyword helper and time parser.
+- Added Safari permission warning guidance.
 
 * Tue Jun 23 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.1-1
-- Add support for Safari profiles, Chromium Local State mapping, and Firefox profiles.ini
+- Support for Safari profiles, Chromium Local State mapping, and Firefox `profiles.ini`.
+- Differentiate and stamp browser profiles in CSV, CLI tables, and statistics.
 
-* Sat Jun 20 2026 Rob Zolkos <robzolkos@gmail.com> - 0.2.0-1
-- Initial Fedora/RedHat package release of revamped web-recap.
+* Sat Jun 20 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.2.0-1
+- Initial release of the revamped web-recap.
+- Added dump, stats, list subcommands.
+- Supported relative date expressions (yesterday, today, N days ago).
+- Added SQLite, MySQL, PostgreSQL, and MongoDB database ingestion.
+- Integrated unit tests with mocked database tests.
+

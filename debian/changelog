@@ -13,29 +13,30 @@ web-recap (0.3.4-1) unstable; urgency=medium
   * Consolidated duplicate file copying functions (`copyTempFile` and `copyFile`) by exporting a shared `CopyFile` helper in the `browser` package.
   * Consolidated duplicate `safariEpochDiff` constant declarations to a single package-level constant in `internal/database/util.go`.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 05:48:12 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 12:00:00 +0200
 
 web-recap (0.3.3-1) unstable; urgency=medium
 
   * Refactored `README.md` to extract database schemas, rationale, and contributing guidelines into dedicated files (`docs/SCHEMA.md`, `docs/MIGRATION.md`, `CONTRIBUTING.md`).
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 01:50:51 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 12:00:00 +0200
 
 web-recap (0.3.2-1) unstable; urgency=medium
 
-  * Bump version and document pending issues.
-  * Added support for bzip2 and xz compression.
-  * Standardized CLI flags (--timezone, --database, --flat shorthands).
+  * Support for `bzip2` and `xz` compression in `web-recap dump` using the `-z` shorthand flag count (e.g., `-z` for gzip, `-zz` for bzip2, `-zzz` for xz).
+  * Renamed `--tz` flag to `--timezone` and added `-Z` shorthand.
+  * Renamed `--db` flag to `--database` (keeps `-d` shorthand).
+  * Added `-x` shorthand for the `--flat` ingestion flag.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 01:45:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 12:00:00 +0200
 
 web-recap (0.3.1-1) unstable; urgency=medium
 
-  * Fix shorthand flag `-z` not working for dump `--compress`.
-  * Fix MongoDB ingestion counting bug that double-counted updated records in bulk write mode.
-  * Remove confusing `keep` alias from ingestion conflict strategy list and enforce validation.
+  * Fixed shorthand flag `-z` not working for dump `--compress`.
+  * Fixed MongoDB ingestion counting bug that double-counted updated records in bulk write mode.
+  * Removed confusing `keep` alias from ingestion conflict strategy list; added strict validation to reject unknown strategies instead of silently falling back to defaults.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 01:17:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Wed, 24 Jun 2026 12:00:00 +0200
 
 web-recap (0.3.0-1) unstable; urgency=medium
 
@@ -44,43 +45,45 @@ web-recap (0.3.0-1) unstable; urgency=medium
   * Rich CLI statistics report including active browsing duration analysis (Chrome), unified navigation transition mapping, sessionization (grouping visits by <30min inactivity), and weekly distribution charts.
   * Firefox places database query checks for the correct `frecency` column instead of `frequency`.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 22:56:19 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 12:00:00 +0200
 
 web-recap (0.2.4-1) unstable; urgency=medium
 
-  * Fix Firefox Windows profile path, add windows path tests, and propagate db ingest errors.
-  * Clean up dead code, synchronize makefile version, and use cases.Title instead of deprecated strings.Title.
+  * Firefox Windows profile path detection.
+  * Propagation of database ingestion errors to parent command.
+  * Replaced deprecated `strings.Title` with `cases.Title`.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 22:15:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 12:00:00 +0200
 
 web-recap (0.2.3-1) unstable; urgency=medium
 
-  * Fix Safari profile detection standard path on macOS.
-  * Copy WAL/journal files alongside databases to capture uncommitted history and fix missing entries.
+  * Safari profile detection standard path on macOS.
+  * Copy WAL/journal auxiliary files alongside databases to capture uncheckpointed database changes.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 21:50:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 12:00:00 +0200
 
 web-recap (0.2.2-1) unstable; urgency=medium
 
-  * Fix SQL ingest replace queries, date range filter helper, time parser, and add Safari permission guidance.
+  * SQL ingest replace queries.
+  * Date range filter relative keyword helper and time parser.
+  * Added Safari permission warning guidance.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 21:40:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 12:00:00 +0200
 
 web-recap (0.2.1-1) unstable; urgency=medium
 
-  * Add support for Safari profiles, Chromium Local State mapping, and Firefox profiles.ini.
-  * Differentiate browser profiles in CSV, CLI tables, and statistics.
+  * Support for Safari profiles, Chromium Local State mapping, and Firefox `profiles.ini`.
+  * Differentiate and stamp browser profiles in CSV, CLI tables, and statistics.
 
- -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 20:02:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Tue, 23 Jun 2026 12:00:00 +0200
 
 web-recap (0.2.0-1) unstable; urgency=medium
 
   * Initial release of the revamped web-recap.
   * Added dump, stats, list subcommands.
   * Supported relative date expressions (yesterday, today, N days ago).
-  * Fixed Safari SQLite REAL timestamp scanning issue.
-  * Fixed Firefox profile detection inside nested Profiles directory.
   * Added SQLite, MySQL, PostgreSQL, and MongoDB database ingestion.
   * Integrated unit tests with mocked database tests.
 
- -- Rob Zolkos <robzolkos@gmail.com>  Sat, 20 Jun 2026 20:00:00 +0200
+ -- Ferran Fontcuberta Figueràs <ferran@fompi.net>  Sat, 20 Jun 2026 12:00:00 +0200
+
