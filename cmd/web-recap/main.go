@@ -120,7 +120,7 @@ func init() {
 
 	// Dump-specific flags
 	dumpCmd.Flags().CountP("compress", "z", "Compress output: -z (gzip), -zz (bzip2), -zzz (xz)")
-	dumpCmd.Flags().StringP("format", "F", "table", "Output format (table, csv, json, jsonl)")
+	dumpCmd.Flags().StringP("format", "F", "text", "Output format (text, csv, json, jsonl)")
 	dumpCmd.Flags().StringP("output", "o", "", "Output to file path instead of stdout")
 
 	// Ingest-specific flags
@@ -473,8 +473,8 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 	// 11. Format output
 	formatVal := strings.ToLower(strings.TrimSpace(cfg.Format))
 	switch formatVal {
-	case "table":
-		err = output.FormatTable(out, allEntries)
+	case "text":
+		err = output.FormatText(out, allEntries)
 	case "json":
 		err = output.FormatJSON(out, allEntries, strings.Join(browserNames, ", "), fromVal, toVal, cfg.Timezone)
 	case "jsonl":

@@ -49,13 +49,13 @@ Max records to query. Supports total limits (e.g. "100") or per-browser configur
 .SH DUMP FLAGS
 .TP
 .BI \-F\fR,\fB \-\-format " value"
-Output format for dump. Options: "table", "json", "jsonl", "csv". Default is "table".
+Output format for dump. Options: "text", "json", "jsonl", "csv". Default is "text".
 .TP
 .BI \-o\fR,\fB \-\-output " file"
 Redirect output to file instead of stdout.
 .TP
 .BI \-z\fR,\fB \-\-compress
-Compress output stream (stdout or file). Use -z for gzip, -zz for bzip2, or -zzz for xz.
+Compress output stream (requires file output). Use -z for gzip, -zz for bzip2, or -zzz for xz.
 .SH INGEST FLAGS
 .TP
 .BI \-c\fR,\fB \-\-connect " connection_string"

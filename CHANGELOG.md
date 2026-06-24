@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced the `version` subcommand with global `--version` (`-V`) flags on the root command.
 - Hid the redundant `help` subcommand from the root command help output.
 - Implemented a concise help/usage output on syntax errors or no arguments, keeping full help display only on explicit request.
+- Renamed the aligned table output format from "table" to "text" (with default extension `.txt`) and implemented dynamic terminal width detection to automatically scale and truncate columns safely on interactive terminals, while outputting full data to non-terminal outputs like files or pipes.
+
 
 
 

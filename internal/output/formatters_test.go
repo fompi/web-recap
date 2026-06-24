@@ -54,7 +54,7 @@ func TestFormatCSV_Error(t *testing.T) {
 	}
 }
 
-func TestFormatTable(t *testing.T) {
+func TestFormatText(t *testing.T) {
 	entries := []models.HistoryEntry{
 		{
 			Browser:    "Chrome",
@@ -77,31 +77,50 @@ func TestFormatTable(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := FormatTable(&buf, entries)
+	err := FormatText(&buf, entries)
 	if err != nil {
-		t.Fatalf("unexpected error formatting table: %v", err)
+		t.Fatalf("unexpected error formatting text: %v", err)
 	}
 
 	output := buf.String()
 	if !strings.Contains(output, "BROWSER") || !strings.Contains(output, "PROFILE") {
-		t.Errorf("missing header in table output: %q", output)
+		t.Errorf("missing header in text output: %q", output)
 	}
 	if !strings.Contains(output, "Google Short Title") {
-		t.Errorf("missing short title in table output")
+		t.Errorf("missing short title in text output")
 	}
 
-	// Verify truncation works:
-	// "Very long title that exceeds forty characters limit" -> len 52
-	// Expected: "Very long title that exceeds forty ch..." (37 + 3 = 40)
-	expectedTitle := "Very long title that exceeds forty ch..."
-	if !strings.Contains(output, expectedTitle) {
-		t.Errorf("expected truncated title %q to be in output: %q", expectedTitle, output)
+	// Verify NO truncation occurs on non-terminal (bytes.Buffer) outputs:
+	fullTitle := "Very long title that exceeds forty characters limit"
+	if !strings.Contains(output, fullTitle) {
+		t.Errorf("expected full title %q to be in output: %q", fullTitle, output)
 	}
 
-	// URL: "https://somelongdomainname.com/very/long/url/path/that/exceeds/sixty/characters/limit/to/verify/truncation/works/correctly" -> len 120
-	// Expected: "https://somelongdomainname.com/very/long/url/path/that/ex..." (57 + 3 = 60)
-	expectedURL := "https://somelongdomainname.com/very/long/url/path/that/ex..."
-	if !strings.Contains(output, expectedURL) {
-		t.Errorf("expected truncated URL %q to be in output: %q", expectedURL, output)
+	fullURL := "https://somelongdomainname.com/very/long/url/path/that/exceeds/sixty/characters/limit/to/verify/truncation/works/correctly"
+	if !strings.Contains(output, fullURL) {
+		t.Errorf("expected full URL %q to be in output: %q", fullURL, output)
+	}
+}
+
+func TestTruncateString(t *testing.T) {
+	tests := []struct {
+		input    string
+		max      int
+		expected string
+	}{
+		{"hello", 0, "hello"},
+		{"hello", -5, "hello"},
+		{"hello", 10, "hello"},
+		{"hello", 5, "hello"},
+		{"hello world", 8, "hello..."},
+		{"hello world", 2, "he"},
+		{"español", 6, "esp..."}, // multi-byte rune test
+	}
+
+	for _, tc := range tests {
+		got := truncateString(tc.input, tc.max)
+		if got != tc.expected {
+			t.Errorf("truncateString(%q, %d) = %q; expected %q", tc.input, tc.max, got, tc.expected)
+		}
 	}
 }

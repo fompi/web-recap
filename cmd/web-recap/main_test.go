@@ -204,7 +204,7 @@ func TestCLI_DumpFormatsAndCompression(t *testing.T) {
 
 	dbPath := createMockChromeDB(t, tempDir)
 
-	formats := []string{"table", "csv", "json", "jsonl"}
+	formats := []string{"text", "csv", "json", "jsonl"}
 	for _, format := range formats {
 		t.Run("format "+format, func(t *testing.T) {
 			resetFlags()

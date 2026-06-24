@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
+	"golang.org/x/term"
 )
 
 // FormatCSV writes history entries as CSV to the given writer
@@ -34,8 +35,59 @@ func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 	return writer.Error()
 }
 
-// FormatTable writes history entries in a human-readable aligned table format
-func FormatTable(w io.Writer, entries []models.HistoryEntry) error {
+// FormatText writes history entries in a human-readable aligned table format
+func FormatText(w io.Writer, entries []models.HistoryEntry) error {
+	// Detect terminal width if writing to a terminal
+	terminalWidth := -1
+	type fdReader interface {
+		Fd() uintptr
+	}
+	if f, ok := w.(fdReader); ok && term.IsTerminal(int(f.Fd())) {
+		if width, _, err := term.GetSize(int(f.Fd())); err == nil {
+			terminalWidth = width
+		}
+	}
+
+	maxBrowser := 7 // len("BROWSER")
+	maxProfile := 7 // len("PROFILE")
+	maxDomain := 6  // len("DOMAIN")
+
+	for _, entry := range entries {
+		if len(entry.Browser) > maxBrowser {
+			maxBrowser = len(entry.Browser)
+		}
+		if len(entry.Profile) > maxProfile {
+			maxProfile = len(entry.Profile)
+		}
+		if len(entry.Domain) > maxDomain {
+			maxDomain = len(entry.Domain)
+		}
+	}
+
+	// Calculate truncation limits if we are writing to a terminal
+	maxTitleWidth := -1
+	maxURLWidth := -1
+	if terminalWidth > 0 {
+		// Budget estimate for fixed columns (browser, profile, timestamp, domain) plus spacing
+		fixedWidth := maxBrowser + maxProfile + 19 + maxDomain + 20
+		remaining := terminalWidth - fixedWidth
+		if remaining < 30 {
+			// Keep small minimum limits if terminal is very narrow
+			maxTitleWidth = 15
+			maxURLWidth = 20
+		} else {
+			// Distribute remaining space: 40% to title, 60% to URL
+			maxTitleWidth = remaining * 4 / 10
+			maxURLWidth = remaining * 6 / 10
+			if maxTitleWidth < 15 {
+				maxTitleWidth = 15
+			}
+			if maxURLWidth < 20 {
+				maxURLWidth = 20
+			}
+		}
+	}
+
 	// tabwriter uses elastic tab stops to align output columns
 	tw := tabwriter.NewWriter(w, 4, 4, 2, ' ', 0)
 	
@@ -43,17 +95,8 @@ func FormatTable(w io.Writer, entries []models.HistoryEntry) error {
 	fmt.Fprintln(tw, "BROWSER\tPROFILE\tTIMESTAMP\tDOMAIN\tTITLE\tURL")
 	
 	for _, entry := range entries {
-		// Truncate title for clean display
-		title := entry.Title
-		if len(title) > 40 {
-			title = title[:37] + "..."
-		}
-		
-		// Truncate URL for clean display
-		url := entry.URL
-		if len(url) > 60 {
-			url = url[:57] + "..."
-		}
+		title := truncateString(entry.Title, maxTitleWidth)
+		url := truncateString(entry.URL, maxURLWidth)
 		
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			entry.Browser,
@@ -67,3 +110,19 @@ func FormatTable(w io.Writer, entries []models.HistoryEntry) error {
 	
 	return tw.Flush()
 }
+
+// truncateString truncates a string safely considering UTF-8 runes
+func truncateString(s string, max int) string {
+	if max <= 0 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	if max <= 3 {
+		return string(runes[:max])
+	}
+	return string(runes[:max-3]) + "..."
+}
+
