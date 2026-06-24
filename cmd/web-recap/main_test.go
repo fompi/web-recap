@@ -481,6 +481,18 @@ func TestCLI_ErrorsAndEdgeCases(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error during ingest failure path, got nil")
 	}
+
+	// 11. Compression without output file error
+	resetFlags()
+	rootCmd.SetArgs([]string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-z"})
+	_, _, err = captureOutput(func() error {
+		return rootCmd.Execute()
+	})
+	if err == nil {
+		t.Errorf("expected error when compression is used without output file, got nil")
+	} else if !strings.Contains(err.Error(), "compression cannot be used when outputting to stdout") {
+		t.Errorf("expected compression stdout error, got: %v", err)
+	}
 }
 
 func TestParseDBPaths(t *testing.T) {

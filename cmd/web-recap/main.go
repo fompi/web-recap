@@ -254,7 +254,7 @@ func parseConfig(cmd *cobra.Command) Config {
 		cfg.Summary, _ = cmd.Flags().GetBool("summary")
 	}
 	if cmd.Flags().Lookup("compress") != nil {
-		cfg.Compress, _ = cmd.Flags().GetInt("compress")
+		cfg.Compress, _ = cmd.Flags().GetCount("compress")
 	}
 	if cmd.Flags().Lookup("format") != nil {
 		cfg.Format, _ = cmd.Flags().GetString("format")
@@ -421,6 +421,10 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 		}
 		fileToClose = f
 		out = f
+	}
+
+	if cfg.Compress > 0 && cfg.Output == "" {
+		return fmt.Errorf("compression cannot be used when outputting to stdout; please specify an output file using -o/--output")
 	}
 
 	var closer io.WriteCloser
