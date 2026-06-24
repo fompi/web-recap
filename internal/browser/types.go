@@ -8,8 +8,9 @@ const (
 	Edge     Type = "edge"
 	Firefox  Type = "firefox"
 	Safari   Type = "safari"
-	Brave    Type = "brave"
-	Auto     Type = "auto"
+	Brave   Type = "brave"
+	Vivaldi Type = "vivaldi"
+	Auto    Type = "auto"
 )
 
 // Browser represents a detected browser with its database path and profile name

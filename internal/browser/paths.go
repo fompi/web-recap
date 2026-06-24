@@ -41,6 +41,8 @@ func getLinuxPath(home string, browserType Type) (string, error) {
 		return filepath.Join(home, ".config/microsoft-edge/Default/History"), nil
 	case Brave:
 		return filepath.Join(home, ".config/BraveSoftware/Brave-Browser/Default/History"), nil
+	case Vivaldi:
+		return filepath.Join(home, ".config/vivaldi/Default/History"), nil
 	case Firefox:
 		// Firefox uses profile directory, we'll handle this in detector
 		return filepath.Join(home, ".mozilla/firefox"), nil
@@ -64,6 +66,8 @@ func getDarwinPath(home string, browserType Type) (string, error) {
 		return filepath.Join(home, "Library/Application Support/Microsoft Edge/Default/History"), nil
 	case Brave:
 		return filepath.Join(home, "Library/Application Support/BraveSoftware/Brave-Browser/Default/History"), nil
+	case Vivaldi:
+		return filepath.Join(home, "Library/Application Support/Vivaldi/Default/History"), nil
 	case Firefox:
 		return filepath.Join(home, "Library/Application Support/Firefox"), nil
 	case Safari:
@@ -110,6 +114,8 @@ func getWindowsPath(home string, browserType Type) (string, error) {
 		return filepath.Join(appDataLocal, "Microsoft", "Edge", "User Data", "Default", "History"), nil
 	case Brave:
 		return filepath.Join(appDataLocal, "BraveSoftware", "Brave-Browser", "User Data", "Default", "History"), nil
+	case Vivaldi:
+		return filepath.Join(appDataLocal, "Vivaldi", "User Data", "Default", "History"), nil
 	case Firefox:
 		return filepath.Join(appDataRoaming, "Mozilla", "Firefox"), nil
 	case Safari:

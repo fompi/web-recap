@@ -42,7 +42,7 @@ func (d *Detector) Detect() []Browser {
 	}
 
 	// Check each browser type
-	for _, bType := range []Type{Chrome, Chromium, Edge, Brave, Firefox, Safari} {
+	for _, bType := range []Type{Chrome, Chromium, Edge, Brave, Vivaldi, Firefox, Safari} {
 		basePath, err := GetDatabasePath(bType, home)
 		if err != nil {
 			continue
@@ -131,7 +131,7 @@ func (d *Detector) Detect() []Browser {
 			continue
 		}
 
-		// Chrome, Chromium, Edge, Brave profiles
+		// Chrome, Chromium, Edge, Brave, Vivaldi profiles
 		// basePath is UserDataDir/Default/History
 		userDataDir := filepath.Dir(filepath.Dir(basePath))
 		profileNames := parseLocalState(userDataDir)
@@ -191,6 +191,8 @@ func GetBrowserName(bType Type) string {
 		return "Microsoft Edge"
 	case Brave:
 		return "Brave"
+	case Vivaldi:
+		return "Vivaldi"
 	case Firefox:
 		return "Firefox"
 	case Safari:
