@@ -4,6 +4,7 @@
 VERSION ?= 0.3.4
 BINARY_NAME := web-recap
 DIST_DIR := dist
+BIN_DIR := bin
 GO := go
 GOFLAGS := -ldflags="-s -w"
 
@@ -23,7 +24,8 @@ help:
 	@echo "  make help           - Show this help message"
 
 build:
-	$(GO) build $(GOFLAGS) -o $(BINARY_NAME) ./cmd/web-recap
+	@mkdir -p $(BIN_DIR)
+	$(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/web-recap
 
 build-all: $(LINUX_AMD64) $(DARWIN_AMD64) $(DARWIN_ARM64) $(WINDOWS_AMD64)
 	@echo "✓ Built all platforms"
@@ -61,6 +63,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	$(GO) clean
 	rm -rf $(DIST_DIR)
+	rm -rf $(BIN_DIR)
 	rm -f $(BINARY_NAME)
 
 install: build
