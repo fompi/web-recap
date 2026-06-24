@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed redundant `--no-summary` (`-S`) flag, relying on `--summary=false` instead.
 - Fixed Arch Linux PKGBUILD declaring a runtime dependency on glibc when built statically with CGO disabled.
 - Removed redundant "flat" option from the `--mode` ingestion flag configuration, consolidating flat structure activation via the `--flat` flag.
+- Removed unused exported functions: `NewDetector()`, `GetBrowser()`, and `GetFirefoxProfilePath()`.
+- Removed unused sentinel errors: `ErrDatabaseLocked`, `ErrDatabaseError`, and `ErrFirefoxProfileNotFound`.
+- Consolidated duplicate file copying functions (`copyTempFile` and `copyFile`) by exporting a shared `CopyFile` helper in the `browser` package.
+- Consolidated duplicate `safariEpochDiff` constant declarations to a single package-level constant in `internal/database/util.go`.
 
 ## [0.3.3] - 2026-06-24
 

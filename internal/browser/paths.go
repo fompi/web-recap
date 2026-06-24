@@ -1,10 +1,10 @@
 package browser
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 // GetDatabasePath returns the database path for a given browser type on the current platform
@@ -120,62 +120,22 @@ func getWindowsPath(home string, browserType Type) (string, error) {
 	}
 }
 
-// GetFirefoxProfilePath returns the active Firefox profile path
-func GetFirefoxProfilePath(profileBaseDir string) (string, error) {
-	if !fileExists(profileBaseDir) {
-		return "", ErrFirefoxProfileNotFound
-	}
-
-	searchDir := profileBaseDir
-	profilesSubdir := filepath.Join(profileBaseDir, "Profiles")
-	if fileExists(profilesSubdir) {
-		searchDir = profilesSubdir
-	}
-
-	// Try to find the default profile or most recently modified profile
-	entries, err := os.ReadDir(searchDir)
+// CopyFile copies a file from src to dst.
+func CopyFile(src, dst string) error {
+	s, err := os.Open(src)
 	if err != nil {
-		return "", err
+		return err
 	}
+	defer s.Close()
 
-	var mostRecentPath string
-	var mostRecentTime int64
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		// Look for .default-release or .default profiles first
-		if strings.HasSuffix(name, ".default-release") || strings.HasSuffix(name, ".default") {
-			placesPath := filepath.Join(searchDir, name, "places.sqlite")
-			if fileExists(placesPath) {
-				return placesPath, nil
-			}
-		}
-
-		// Otherwise, keep track of the most recently modified profile
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		modTime := info.ModTime().Unix()
-		if modTime > mostRecentTime {
-			mostRecentTime = modTime
-			placesPath := filepath.Join(searchDir, name, "places.sqlite")
-			if fileExists(placesPath) {
-				mostRecentPath = placesPath
-			}
-		}
+	d, err := os.Create(dst)
+	if err != nil {
+		return err
 	}
+	defer d.Close()
 
-	if mostRecentPath != "" {
-		return mostRecentPath, nil
-	}
-
-	return "", ErrFirefoxProfileNotFound
+	_, err = io.Copy(d, s)
+	return err
 }
 
 func fileExists(path string) bool {

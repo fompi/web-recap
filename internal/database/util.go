@@ -8,7 +8,11 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/rzolkos/web-recap/internal/browser"
 )
+
+const safariEpochDiff = 978307200
 
 // HasColumn checks if a column exists in a given table
 func HasColumn(db *sql.DB, tableName, columnName string) (bool, error) {
@@ -61,11 +65,6 @@ func ConvertFirefoxTimestamp(firefoxTime int64) time.Time {
 
 // ConvertSafariTimestamp converts Safari's timestamp format (seconds since 2001-01-01) to Unix time
 func ConvertSafariTimestamp(safariTime float64) time.Time {
-	// Safari uses seconds since 2001-01-01
-	// Unix epoch is 1970-01-01
-	// Difference: 978307200 seconds
-	const safariEpochDiff = 978307200
-
 	unixSeconds := int64(safariTime) + safariEpochDiff
 	unixNanos := int64((safariTime - float64(int64(safariTime))) * 1e9)
 	return time.Unix(unixSeconds, unixNanos).UTC()
@@ -136,28 +135,11 @@ func CopyDatabaseWithWAL(srcPath string, prefix string) (string, func(), error) 
 		auxSrcPath := srcPath + suffix
 		if _, err := os.Stat(auxSrcPath); err == nil {
 			auxDstPath := tmpPath + suffix
-			if err := copyFile(auxSrcPath, auxDstPath); err == nil {
+			if err := browser.CopyFile(auxSrcPath, auxDstPath); err == nil {
 				copiedAuxFiles = append(copiedAuxFiles, auxDstPath)
 			}
 		}
 	}
 
 	return tmpPath, cleanup, nil
-}
-
-func copyFile(srcPath, dstPath string) error {
-	src, err := os.Open(srcPath)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	dst, err := os.Create(dstPath)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	_, err = io.Copy(dst, src)
-	return err
 }

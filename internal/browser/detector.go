@@ -3,7 +3,6 @@ package browser
 import (
 	"database/sql"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,10 +16,6 @@ type Detector struct {
 	HomeDir string
 }
 
-// NewDetector creates a new browser detector
-func NewDetector() *Detector {
-	return &Detector{}
-}
 
 // NewDetectorForUser creates a new browser detector for a specific home directory
 func NewDetectorForUser(homeDir string) *Detector {
@@ -182,29 +177,6 @@ func (d *Detector) Detect() []Browser {
 	return browsers
 }
 
-// GetBrowser returns a specific browser profile, detecting if necessary
-func (d *Detector) GetBrowser(browserType Type) (*Browser, error) {
-	if browserType == Auto {
-		browsers := d.Detect()
-		if len(browsers) == 0 {
-			return nil, ErrDatabaseNotFound
-		}
-		return &browsers[0], nil
-	}
-
-	// For specific browsers, return all detected profiles of that type
-	// If the type is chrome, we find all chrome profiles.
-	// Since GetBrowser signature returns (*Browser, error), we return the first detected profile.
-	// We will handle query resolution for all profiles in the command runner.
-	browsers := d.Detect()
-	for _, b := range browsers {
-		if b.Type == browserType {
-			return &b, nil
-		}
-	}
-
-	return nil, ErrDatabaseNotFound
-}
 
 func GetBrowserName(bType Type) string {
 	switch bType {
@@ -317,20 +289,14 @@ func parseSafariProfiles(tabsDBPath string) map[string]string {
 }
 
 func copyTempFile(srcPath string) (string, error) {
-	src, err := os.Open(srcPath)
-	if err != nil {
-		return "", err
-	}
-	defer src.Close()
-
 	dst, err := os.CreateTemp("", "web-recap-*.db")
 	if err != nil {
 		return "", err
 	}
 	tmpFile := dst.Name()
-	defer dst.Close()
+	dst.Close()
 
-	if _, err := io.Copy(dst, src); err != nil {
+	if err := CopyFile(srcPath, tmpFile); err != nil {
 		os.Remove(tmpFile)
 		return "", err
 	}

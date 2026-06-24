@@ -120,7 +120,6 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		`
 
 		if !startDate.IsZero() {
-			const safariEpochDiff = 978307200
 			safariStart := startDate.Unix() - safariEpochDiff
 			query += ` AND hv.visit_time >= ?`
 			args = append(args, safariStart)
@@ -131,7 +130,6 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			if endDate.Hour() == 0 && endDate.Minute() == 0 && endDate.Second() == 0 {
 				endTimestamp += 86400
 			}
-			const safariEpochDiff = 978307200
 			safariEnd := endTimestamp - safariEpochDiff
 			query += ` AND hv.visit_time < ?`
 			args = append(args, safariEnd)
