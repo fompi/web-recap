@@ -587,7 +587,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 		}
 		tzStr := cfg.Timezone
 		if tzStr == "" {
-			tzStr = "UTC"
+			tzStr = loc.String()
 		}
 
 		type browserProfile struct {
