@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an inconsistency where history entry browser fields were set to internal type codes (e.g. `chrome`) instead of their human-readable display names (e.g. `Google Chrome`).
 - Removed redundant `--no-summary` (`-S`) flag, relying on `--summary=false` instead.
 - Fixed Arch Linux PKGBUILD declaring a runtime dependency on glibc when built statically with CGO disabled.
+- Removed redundant "flat" option from the `--mode` ingestion flag configuration, consolidating flat structure activation via the `--flat` flag.
 
 ## [0.3.3] - 2026-06-24
 

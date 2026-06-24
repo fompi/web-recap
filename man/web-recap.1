@@ -62,7 +62,7 @@ Compress output stream (stdout or file). Use -z for gzip, -zz for bzip2, or -zzz
 Direct database ingestion connection string (e.g. "mysql://user:pass@localhost/db", "sqlite://history.db", or "mongodb://localhost"). (Required for ingest)
 .TP
 .BI \-M\fR,\fB \-\-mode " value"
-Ingestion mode. Options: "merged" (common columns in single table), "split" (separate tables per browser with raw columns), "flat" (single denormalized flat table containing all columns), "both" (both merged and split tables). Default is "merged".
+Ingestion mode. Options: "merged" (common columns in single table), "split" (separate tables per browser with raw columns), "both" (both merged and split tables). Default is "merged".
 .TP
 .BI \-C\fR,\fB \-\-conflict " strategy"
 Ingestion conflict strategy: "skip" (default), "replace", or "keep".

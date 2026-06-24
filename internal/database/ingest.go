@@ -36,9 +36,6 @@ func Ingest(connectStr string, entries []models.HistoryEntry, conflictStrategy s
 	switch mode {
 	case "split", "merged", "both":
 		// Keep as is
-	case "flat":
-		mode = "merged"
-		flat = true
 	default:
 		mode = "merged"
 	}
