@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fixed nanosecond handling in date range midnight boundary check for Chrome, Firefox, and Safari query handlers, ensuring non-midnight times are not incorrectly shifted.
+- Removed redundant sorting step in `database.Query()` since database SQL queries already retrieve entries pre-sorted descending.
+- Corrected MongoDB ingestion `insertedCount` calculation to sum `UpsertedCount` and `ModifiedCount` instead of `MatchedCount`, preventing inflated counts of unchanged records.
+
 ## [0.3.4] - 2026-06-24
 
 ### Added

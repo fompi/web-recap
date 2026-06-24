@@ -98,6 +98,13 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Errorf("expected 1 entry, got %d", len(entries))
 	}
 
+	// Test 3b: end date with non-zero nanoseconds at 00:00:00 (does not add 86400)
+	nsEndDate := time.Date(2026, 6, 20, 0, 0, 0, 100, time.UTC)
+	entries, _ = handler.GetHistory(time.Time{}, nsEndDate)
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries (excluding 12:00:00 visit), got %d", len(entries))
+	}
+
 	// Test 4: empty dates (limits to 10000)
 	entries, _ = handler.GetHistory(time.Time{}, time.Time{})
 	if len(entries) != 1 {

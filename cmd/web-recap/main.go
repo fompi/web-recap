@@ -125,7 +125,7 @@ func init() {
 	// Add common filter flags to subcommands that query history
 	for _, sub := range []*cobra.Command{dumpCmd, statsCmd, ingestCmd} {
 		sub.Flags().StringVarP(&fromFlag, "from", "f", "", "Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)")
-		sub.Flags().StringVarP(&toFlag, "to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601)")
+		sub.Flags().StringVarP(&toFlag, "to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601). If time is exactly midnight, the range is implicitly extended by 24 hours to include the entire day.")
 		sub.Flags().StringVarP(&timezone, "timezone", "Z", "", "Timezone name (e.g. America/New_York, UTC, local)")
 		sub.Flags().StringVarP(&browserFlag, "browser", "b", "", "Comma-separated list of browsers (defaults to all)")
 		sub.Flags().StringVarP(&dbFlag, "database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")

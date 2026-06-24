@@ -30,7 +30,7 @@ Prints the current version of the tool.
 Start date/time for query. Supports ISO8601 strings (e.g. "2026-06-20T12:00:00Z") and relative keywords: "today", "yesterday", "start", "0", "now", or "N days/hours/minutes ago".
 .TP
 .BI \-t\fR,\fB \-\-to " value"
-End date/time for query. Supports ISO8601 strings and relative keywords.
+End date/time for query. Supports ISO8601 strings and relative keywords. If the time is exactly midnight (00:00:00), the range is implicitly extended by 24 hours to include that entire day.
 .TP
 .BI \-Z\fR,\fB \-\-timezone " value"
 Explicit timezone for parsing helper strings and dates lacking offsets (e.g. "America/New_York"). Defaults to local system timezone.

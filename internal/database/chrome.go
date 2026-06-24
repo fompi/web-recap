@@ -69,7 +69,7 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 
 		if !endDate.IsZero() {
 			endTimestamp := endDate.Unix()
-			if endDate.Hour() == 0 && endDate.Minute() == 0 && endDate.Second() == 0 {
+			if endDate.Hour() == 0 && endDate.Minute() == 0 && endDate.Second() == 0 && endDate.Nanosecond() == 0 {
 				endTimestamp += 86400
 			}
 			chromeEnd := (endTimestamp + 11644473600) * 1000000

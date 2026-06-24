@@ -1153,7 +1153,7 @@ func ingestMongoDB(ctx context.Context, uri string, entries []models.HistoryEntr
 			coll := db.Collection(collName)
 			res, err := coll.BulkWrite(ctx, modelsList, options.BulkWrite().SetOrdered(false))
 			if err == nil && res != nil {
-				insertedCount += int(res.UpsertedCount) + int(res.MatchedCount)
+				insertedCount += int(res.UpsertedCount) + int(res.ModifiedCount)
 			}
 		}
 	}

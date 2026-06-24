@@ -39,11 +39,6 @@ func Query(b *browser.Browser, startDate, endDate time.Time) ([]models.HistoryEn
 		return nil, err
 	}
 
-	// Sort by timestamp descending
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Timestamp.After(entries[j].Timestamp)
-	})
-
 	return entries, nil
 }
 
