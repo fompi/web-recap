@@ -31,7 +31,6 @@ var (
 	dbFlag           string
 	userFlag         string
 	summary          bool
-	noSummary        bool
 	compressCount    int
 	connectStr       string
 	conflictStrategy string
@@ -133,7 +132,6 @@ func init() {
 		sub.Flags().StringVarP(&userFlag, "user", "u", "", "Retrieve history for another system user")
 		sub.Flags().StringVarP(&limitFlag, "limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
 		sub.Flags().BoolVarP(&summary, "summary", "s", true, "Show summary on stderr")
-		sub.Flags().BoolVarP(&noSummary, "no-summary", "S", false, "Disable summary on stderr")
 	}
 
 	// Dump-specific flags
@@ -276,7 +274,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 		allEntries = allEntries[:totalLimit]
 	}
 
-	showSummary := summary && !noSummary
+	showSummary := summary
 
 	// If stats subcommand is chosen, display stats
 	if statsOnly {
