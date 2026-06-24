@@ -672,6 +672,89 @@ func TestCLI_JSONAndSummary(t *testing.T) {
 	}
 }
 
+func TestCLI_SmartOutput(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "web-recap-smart-output")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dbPath := createMockChromeDB(t, tempDir)
+
+	tests := []struct {
+		name             string
+		args             []string
+		expectedFilename string
+		expectedFormat   string
+		expectedCompress int
+	}{
+		{
+			name:             "Filename suffix override format",
+			args:             []string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-o", filepath.Join(tempDir, "override.json"), "-F", "csv"},
+			expectedFilename: "override.json",
+			expectedFormat:   "json",
+			expectedCompress: 0,
+		},
+		{
+			name:             "Filename suffix override compression",
+			args:             []string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-o", filepath.Join(tempDir, "override.csv.xz"), "-zz"},
+			expectedFilename: "override.csv.xz",
+			expectedFormat:   "csv",
+			expectedCompress: 3, // xz
+		},
+		{
+			name:             "Autocomplete format extension",
+			args:             []string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-o", filepath.Join(tempDir, "auto"), "-F", "json"},
+			expectedFilename: "auto.json",
+			expectedFormat:   "json",
+			expectedCompress: 0,
+		},
+		{
+			name:             "Autocomplete format and compression extensions",
+			args:             []string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-o", filepath.Join(tempDir, "auto2"), "-F", "json", "-zzz"},
+			expectedFilename: "auto2.json.xz",
+			expectedFormat:   "json",
+			expectedCompress: 3, // xz
+		},
+		{
+			name:             "Autocomplete default format text extension",
+			args:             []string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-o", filepath.Join(tempDir, "default")},
+			expectedFilename: "default.txt",
+			expectedFormat:   "text",
+			expectedCompress: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resetFlags()
+			rootCmd.SetArgs(tc.args)
+			_, _, err := captureOutput(func() error {
+				return rootCmd.Execute()
+			})
+			if err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+
+			cfg := parseConfig(dumpCmd)
+			expectedPath := filepath.Join(tempDir, tc.expectedFilename)
+			if cfg.Output != expectedPath {
+				t.Errorf("expected Output path %q, got %q", expectedPath, cfg.Output)
+			}
+			if cfg.Format != tc.expectedFormat {
+				t.Errorf("expected Format %q, got %q", tc.expectedFormat, cfg.Format)
+			}
+			if cfg.Compress != tc.expectedCompress {
+				t.Errorf("expected Compress %d, got %d", tc.expectedCompress, cfg.Compress)
+			}
+
+			if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+				t.Errorf("expected file to exist at %q", expectedPath)
+			}
+		})
+	}
+}
+
 func TestCLI_Main(t *testing.T) {
 	resetFlags()
 	rootCmd.SetArgs([]string{"--version"})

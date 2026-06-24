@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified JSON output format to write a flat array of entries (removing the `HistoryReport` wrapper structure).
 - Configured JSON output to be automatically pretty-printed when outputting to stdout (terminal) and compact/minified when writing to a file.
 - Enhanced the stderr summary report to display the total entries, timezone, date range filter info, and a detailed breakdown of entries per browser and profile with counts and percentages.
+- Implemented smart output filename parsing to autodetect format and compression from the `-o` file extension (with filename-deduced extensions taking precedence over CLI flags), and automatically autocomplete file extensions when names without extensions are provided.
+
 
 
 

@@ -253,15 +253,100 @@ func parseConfig(cmd *cobra.Command) Config {
 	if cmd.Flags().Lookup("summary") != nil {
 		cfg.Summary, _ = cmd.Flags().GetBool("summary")
 	}
-	if cmd.Flags().Lookup("compress") != nil {
-		cfg.Compress, _ = cmd.Flags().GetCount("compress")
-	}
-	if cmd.Flags().Lookup("format") != nil {
-		cfg.Format, _ = cmd.Flags().GetString("format")
-	}
 	if cmd.Flags().Lookup("output") != nil {
 		cfg.Output, _ = cmd.Flags().GetString("output")
 	}
+	if cfg.Output != "" {
+		// Deduced compression
+		deducedCompress := 0
+		strippedOut := cfg.Output
+		
+		if strings.HasSuffix(strings.ToLower(strippedOut), ".gz") {
+			deducedCompress = 1
+			strippedOut = strippedOut[:len(strippedOut)-3]
+		} else if strings.HasSuffix(strings.ToLower(strippedOut), ".bz2") {
+			deducedCompress = 2
+			strippedOut = strippedOut[:len(strippedOut)-4]
+		} else if strings.HasSuffix(strings.ToLower(strippedOut), ".xz") {
+			deducedCompress = 3
+			strippedOut = strippedOut[:len(strippedOut)-3]
+		}
+
+		// Deduced format
+		deducedFormat := ""
+		if strings.HasSuffix(strings.ToLower(strippedOut), ".json") {
+			deducedFormat = "json"
+		} else if strings.HasSuffix(strings.ToLower(strippedOut), ".jsonl") {
+			deducedFormat = "jsonl"
+		} else if strings.HasSuffix(strings.ToLower(strippedOut), ".csv") {
+			deducedFormat = "csv"
+		} else if strings.HasSuffix(strings.ToLower(strippedOut), ".txt") {
+			deducedFormat = "text"
+		}
+
+		// Compression logic with precedence
+		finalCompress := 0
+		if deducedCompress > 0 {
+			finalCompress = deducedCompress
+		} else if cmd.Flags().Lookup("compress") != nil {
+			finalCompress, _ = cmd.Flags().GetCount("compress")
+		}
+		cfg.Compress = finalCompress
+
+		// Format logic with precedence
+		finalFormat := ""
+		if deducedFormat != "" {
+			finalFormat = deducedFormat
+		} else if cmd.Flags().Lookup("format") != nil {
+			finalFormat, _ = cmd.Flags().GetString("format")
+		}
+		if finalFormat == "" {
+			finalFormat = "text"
+		}
+		cfg.Format = finalFormat
+
+		// Autocomplete extensions if output file has no supported suffix
+		hasSupportedExtension := false
+		lowerFile := strings.ToLower(cfg.Output)
+		for _, ext := range []string{".json", ".jsonl", ".csv", ".txt", ".gz", ".bz2", ".xz"} {
+			if strings.HasSuffix(lowerFile, ext) {
+				hasSupportedExtension = true
+				break
+			}
+		}
+
+		if !hasSupportedExtension {
+			// Append format extension first
+			switch cfg.Format {
+			case "json":
+				cfg.Output += ".json"
+			case "jsonl":
+				cfg.Output += ".jsonl"
+			case "csv":
+				cfg.Output += ".csv"
+			case "text":
+				cfg.Output += ".txt"
+			}
+			// Append compression extension next
+			switch cfg.Compress {
+			case 1:
+				cfg.Output += ".gz"
+			case 2:
+				cfg.Output += ".bz2"
+			case 3:
+				cfg.Output += ".xz"
+			}
+		}
+	} else {
+		// Output is stdout (empty)
+		if cmd.Flags().Lookup("compress") != nil {
+			cfg.Compress, _ = cmd.Flags().GetCount("compress")
+		}
+		if cmd.Flags().Lookup("format") != nil {
+			cfg.Format, _ = cmd.Flags().GetString("format")
+		}
+	}
+
 	if cmd.Flags().Lookup("connect") != nil {
 		cfg.Connect, _ = cmd.Flags().GetString("connect")
 	}
