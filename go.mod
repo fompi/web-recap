@@ -39,3 +39,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+replace github.com/mattn/go-sqlite3 => ./third_party/go-sqlite3
