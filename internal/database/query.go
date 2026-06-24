@@ -17,11 +17,11 @@ type HistoryQuerier interface {
 func NewQuerier(b *browser.Browser) (HistoryQuerier, error) {
 	switch b.Type {
 	case browser.Chrome, browser.Chromium, browser.Edge, browser.Brave:
-		return NewChromeHandler(b.Path, string(b.Type), b.Profile), nil
+		return NewChromeHandler(b.Path, b.Name, b.Profile), nil
 	case browser.Firefox:
-		return NewFirefoxHandler(b.Path, string(b.Type), b.Profile), nil
+		return NewFirefoxHandler(b.Path, b.Name, b.Profile), nil
 	case browser.Safari:
-		return NewSafariHandler(b.Path, string(b.Type), b.Profile), nil
+		return NewSafariHandler(b.Path, b.Name, b.Profile), nil
 	default:
 		return nil, ErrUnsupportedBrowser
 	}

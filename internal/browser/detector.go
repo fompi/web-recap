@@ -147,7 +147,7 @@ func (d *Detector) Detect() []Browser {
 			}
 			browsers = append(browsers, Browser{
 				Type:    bType,
-				Name:    getBrowserName(bType),
+				Name:    GetBrowserName(bType),
 				Path:    defaultPath,
 				Profile: profileName,
 			})
@@ -168,7 +168,7 @@ func (d *Detector) Detect() []Browser {
 							}
 							browsers = append(browsers, Browser{
 								Type:    bType,
-								Name:    getBrowserName(bType),
+								Name:    GetBrowserName(bType),
 								Path:    profilePath,
 								Profile: profileName,
 							})
@@ -206,7 +206,7 @@ func (d *Detector) GetBrowser(browserType Type) (*Browser, error) {
 	return nil, ErrDatabaseNotFound
 }
 
-func getBrowserName(bType Type) string {
+func GetBrowserName(bType Type) string {
 	switch bType {
 	case Chrome:
 		return "Google Chrome"

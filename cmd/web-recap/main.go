@@ -437,7 +437,7 @@ func resolveBrowsers(browserFlag string, detector *browser.Detector, dbPaths map
 			if !found {
 				result = append(result, &browser.Browser{
 					Type:    browser.Type(bType),
-					Name:    bType,
+					Name:    browser.GetBrowserName(browser.Type(bType)),
 					Path:    path,
 					Profile: "Default",
 				})
@@ -461,7 +461,7 @@ func resolveBrowsers(browserFlag string, detector *browser.Detector, dbPaths map
 		if path, ok := dbPaths[part]; ok {
 			result = append(result, &browser.Browser{
 				Type:    bType,
-				Name:    part,
+				Name:    browser.GetBrowserName(bType),
 				Path:    path,
 				Profile: "Default",
 			})

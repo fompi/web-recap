@@ -197,10 +197,10 @@ func ingestSQL(driverName, dsn string, entries []models.HistoryEntry, conflictSt
 
 func getBrowserClass(browser string) string {
 	b := strings.ToLower(browser)
-	if b == "firefox" {
+	if strings.Contains(b, "firefox") {
 		return "firefox"
 	}
-	if b == "safari" {
+	if strings.Contains(b, "safari") {
 		return "safari"
 	}
 	return "chrome" // default to chrome schema for chromium browsers
@@ -208,6 +208,24 @@ func getBrowserClass(browser string) string {
 
 func getBrowserSpecificTableName(browser string) string {
 	b := strings.ToLower(browser)
+	if strings.Contains(b, "google chrome") || b == "chrome" {
+		return "history_chrome"
+	}
+	if strings.Contains(b, "microsoft edge") || b == "edge" {
+		return "history_edge"
+	}
+	if strings.Contains(b, "brave") {
+		return "history_brave"
+	}
+	if strings.Contains(b, "chromium") {
+		return "history_chromium"
+	}
+	if strings.Contains(b, "firefox") {
+		return "history_firefox"
+	}
+	if strings.Contains(b, "safari") {
+		return "history_safari"
+	}
 	// Sanitize to prevent SQL injection in table name
 	b = strings.ReplaceAll(b, " ", "_")
 	b = strings.ReplaceAll(b, "-", "_")

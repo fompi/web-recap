@@ -93,7 +93,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 
 		// Chrome-specific active browsing time (visit_duration)
 		browserLower := strings.ToLower(entry.Browser)
-		isChromeFamily := browserLower == "chrome" || browserLower == "chromium" || browserLower == "edge" || browserLower == "brave"
+		isChromeFamily := browserLower == "chrome" || browserLower == "google chrome" || browserLower == "chromium" || browserLower == "edge" || browserLower == "microsoft edge" || browserLower == "brave"
 
 		if isChromeFamily {
 			chromeCount++
