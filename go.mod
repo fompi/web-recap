@@ -6,12 +6,12 @@ require (
 	github.com/dsnet/compress v0.0.1
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/lib/pq v1.12.3
+	github.com/mattn/go-sqlite3 v1.14.47
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
 	github.com/ulikunitz/xz v0.5.15
 	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/term v0.44.0
-	golang.org/x/text v0.17.0
 	modernc.org/sqlite v1.40.1
 )
 
@@ -34,6 +34,7 @@ require (
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	modernc.org/libc v1.66.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

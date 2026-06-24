@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestCLI_IngestModes(t *testing.T) {

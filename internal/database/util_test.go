@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestConvertChromeTimestamp(t *testing.T) {

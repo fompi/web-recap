@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestChromeHandler_NewChromeHandler_EmptyBrowser(t *testing.T) {

@@ -12,7 +12,6 @@ import (
 	"github.com/rzolkos/web-recap/internal/browser"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	_ "modernc.org/sqlite"
 )
 
 func init() {

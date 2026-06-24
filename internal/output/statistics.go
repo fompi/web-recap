@@ -8,9 +8,15 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
+
+// titleCase uppercases the first rune of s; browser names are ASCII so this is safe.
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
 
 // DomainStat stores counts for a domain
 type DomainStat struct {
@@ -81,7 +87,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	for _, entry := range entries {
 		domainCounts[entry.Domain]++
 		urlCounts[entry.URL]++
-		browserKey := fmt.Sprintf("%s (%s)", cases.Title(language.Und).String(entry.Browser), entry.Profile)
+		browserKey := fmt.Sprintf("%s (%s)", titleCase(entry.Browser), entry.Profile)
 		browserCounts[browserKey]++
 
 		// Hour, weekday and date in local timezone

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestFirefoxHandler_NewFirefoxHandler_EmptyBrowser(t *testing.T) {

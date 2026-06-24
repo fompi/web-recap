@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestSafariHandler_NewSafariHandler_EmptyBrowser(t *testing.T) {

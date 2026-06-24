@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Consolidated the `modernc.org/sqlite` driver registration (previously duplicated across `chrome.go`, `firefox.go`, `safari.go`, and `detector.go`) into single dedicated files (`internal/database/drivers_sqlite.go`, `internal/browser/drivers_sqlite.go`). No behaviour change.
 - Moved the MySQL and PostgreSQL blank-import driver registrations out of `ingest_sql.go` into `drivers_mysql.go` and `drivers_postgres.go` respectively, each guarded by the corresponding build tag.
+- Replaced `golang.org/x/text/cases` + `golang.org/x/text/language` (imported solely to capitalise browser names in the stats view) with a two-line stdlib helper, eliminating a 317 KB transitive dependency.
+- When CGO is available (the default for local `make build` / `make build-lean`), the SQLite driver now uses `mattn/go-sqlite3` instead of `modernc.org/sqlite`. A pair of `//go:build cgo` / `//go:build !cgo` files (`drivers_sqlite_cgo.go` / `drivers_sqlite.go`) select between the two. This avoids pulling in `modernc.org/libc` — a ~5.8 MB port of the C standard library to Go — and shrinks local lean builds from ~8.9 MB to **~6.5 MB**. Cross-compiled (`CGO_ENABLED=0`) dist builds are unchanged and continue to use `modernc.org/sqlite`.
 
 ### Fixed
 - `FormatJSON` now emits `[]` instead of `null` when there are no history entries, preventing downstream consumers from receiving an unexpected null value (#22).
