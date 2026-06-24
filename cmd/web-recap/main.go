@@ -21,32 +21,20 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-var (
-	fromFlag         string
-	toFlag           string
-	timezone         string
-	browserFlag      string
-	formatFlag       string
-	outputFile       string
-	dbFlag           string
-	userFlag         string
-	summary          bool
-	compressCount    int
-	connectStr       string
-	conflictStrategy string
-	modeFlag         string
-	limitFlag        string
-	flatFlag         bool
-	version          = "0.3.4"
-)
-
-
+const version = "0.3.4"
 
 var rootCmd = &cobra.Command{
 	Use:   "web-recap",
 	Short: "Extract browser history in human-friendly or machine-friendly formats",
 	Long: `web-recap extracts browser history from Chrome, Chromium, Firefox, Safari, and Edge.
 It supports advanced relative time filters, multiple output formats, and direct database ingestion.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		showVersion, _ := cmd.Flags().GetBool("version")
+		if showVersion {
+			return
+		}
+		printShortHelp()
+	},
 }
 
 var dumpCmd = &cobra.Command{
@@ -90,7 +78,8 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List detected browsers and profiles",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := browser.GetHomeDirForUser(userFlag)
+		user, _ := cmd.Flags().GetString("user")
+		homeDir, err := browser.GetHomeDirForUser(user)
 		if err != nil {
 			return err
 		}
@@ -111,71 +100,197 @@ var listCmd = &cobra.Command{
 	},
 }
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Show version",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("web-recap version %s\n", version)
-	},
-}
-
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
+	// Persistent flags (available to all commands)
+	rootCmd.PersistentFlags().StringP("user", "u", "", "Retrieve history for another system user")
+	rootCmd.PersistentFlags().BoolP("version", "V", false, "Show version")
+
 	// Add common filter flags to subcommands that query history
 	for _, sub := range []*cobra.Command{dumpCmd, statsCmd, ingestCmd} {
-		sub.Flags().StringVarP(&fromFlag, "from", "f", "", "Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)")
-		sub.Flags().StringVarP(&toFlag, "to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601). If time is exactly midnight, the range is implicitly extended by 24 hours to include the entire day.")
-		sub.Flags().StringVarP(&timezone, "timezone", "Z", "", "Timezone name (e.g. America/New_York, UTC, local)")
-		sub.Flags().StringVarP(&browserFlag, "browser", "b", "", "Comma-separated list of browsers (defaults to all)")
-		sub.Flags().StringVarP(&dbFlag, "database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
-		sub.Flags().StringVarP(&userFlag, "user", "u", "", "Retrieve history for another system user")
-		sub.Flags().StringVarP(&limitFlag, "limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
-		sub.Flags().BoolVarP(&summary, "summary", "s", true, "Show summary on stderr")
+		sub.Flags().StringP("from", "f", "", "Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)")
+		sub.Flags().StringP("to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601). If time is exactly midnight, the range is implicitly extended by 24 hours to include the entire day.")
+		sub.Flags().StringP("timezone", "Z", "", "Timezone name (e.g. America/New_York, UTC, local)")
+		sub.Flags().StringP("browser", "b", "", "Comma-separated list of browsers (defaults to all)")
+		sub.Flags().StringP("database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
+		sub.Flags().StringP("limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
+		sub.Flags().BoolP("summary", "s", true, "Show summary on stderr")
 	}
 
 	// Dump-specific flags
-	dumpCmd.Flags().CountVarP(&compressCount, "compress", "z", "Compress output: -z (gzip), -zz (bzip2), -zzz (xz)")
-	dumpCmd.Flags().StringVarP(&formatFlag, "format", "F", "table", "Output format (table, csv, json, jsonl)")
-	dumpCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output to file path instead of stdout")
+	dumpCmd.Flags().CountP("compress", "z", "Compress output: -z (gzip), -zz (bzip2), -zzz (xz)")
+	dumpCmd.Flags().StringP("format", "F", "table", "Output format (table, csv, json, jsonl)")
+	dumpCmd.Flags().StringP("output", "o", "", "Output to file path instead of stdout")
 
 	// Ingest-specific flags
-	ingestCmd.Flags().StringVarP(&connectStr, "connect", "c", "", "Database connection string (e.g. mysql://user:pass@host/db) (Required)")
-	ingestCmd.Flags().StringVarP(&conflictStrategy, "conflict", "C", "skip", "Ingestion conflict strategy: skip, replace")
-	ingestCmd.Flags().StringVarP(&modeFlag, "mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
-	ingestCmd.Flags().BoolVarP(&flatFlag, "flat", "x", false, "Create flat tables repeating common data instead of relational schemas")
+	ingestCmd.Flags().StringP("connect", "c", "", "Database connection string (e.g. mysql://user:pass@host/db) (Required)")
+	ingestCmd.Flags().StringP("conflict", "C", "skip", "Ingestion conflict strategy: skip, replace")
+	ingestCmd.Flags().StringP("mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
+	ingestCmd.Flags().BoolP("flat", "x", false, "Create flat tables repeating common data instead of relational schemas")
 	_ = ingestCmd.MarkFlagRequired("connect")
 
-	// List-specific flags
-	listCmd.Flags().StringVarP(&userFlag, "user", "u", "", "Retrieve history for another system user")
+	// Set custom flag error handler on all commands
+	for _, cmd := range []*cobra.Command{rootCmd, dumpCmd, statsCmd, ingestCmd, listCmd} {
+		cmd.SetFlagErrorFunc(handleFlagError)
+	}
 
 	rootCmd.AddCommand(dumpCmd)
 	rootCmd.AddCommand(statsCmd)
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(versionCmd)
+
+	// Hide Cobra's default help command
+	rootCmd.SetHelpCommand(&cobra.Command{
+		Use:    "help [command]",
+		Short:  "Help about any command",
+		Long:   `Help provides help for any command in the application.`,
+		Hidden: true,
+		Run: func(c *cobra.Command, args []string) {
+			cmd, _, e := rootCmd.Find(args)
+			if cmd == nil || e != nil {
+				c.Printf("Unknown help topic %#q\n", args)
+				_ = rootCmd.Usage()
+				return
+			}
+			helpFunc := cmd.HelpFunc()
+			helpFunc(cmd, args)
+		},
+	})
+
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		showVersion, _ := cmd.Flags().GetBool("version")
+		if showVersion {
+			fmt.Printf("web-recap version %s\n", version)
+			osExit(0)
+		}
+	}
 }
 
 var osExit = os.Exit
 
+func printShortHelp() {
+	fmt.Println(`Usage:
+  web-recap [command]
+
+Available Commands:
+  dump        Dump raw browser history entries
+  stats       Show history statistics and charts
+  ingest      Ingest browser history entries directly into a database
+  list        List detected browsers and profiles
+
+Examples:
+  web-recap dump --browser chrome
+  web-recap stats --from "7 days"
+  web-recap list
+
+Use "web-recap [command] --help" for more information about a command.`)
+}
+
+func handleFlagError(cmd *cobra.Command, err error) error {
+	fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
+	printShortHelp()
+	osExit(1)
+	return nil
+}
+
 func main() {
+	// Execution without arguments
+	if len(os.Args) == 1 {
+		printShortHelp()
+		osExit(0)
+	}
+
+	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		osExit(1)
 	}
 }
 
+type Config struct {
+	From             string
+	To               string
+	Timezone         string
+	Browser          string
+	Format           string
+	Output           string
+	Database         string
+	User             string
+	Summary          bool
+	Compress         int
+	Connect          string
+	Conflict         string
+	Mode             string
+	Limit            string
+	Flat             bool
+}
+
+func parseConfig(cmd *cobra.Command) Config {
+	var cfg Config
+	
+	if cmd.Flags().Lookup("from") != nil {
+		cfg.From, _ = cmd.Flags().GetString("from")
+	}
+	if cmd.Flags().Lookup("to") != nil {
+		cfg.To, _ = cmd.Flags().GetString("to")
+	}
+	if cmd.Flags().Lookup("timezone") != nil {
+		cfg.Timezone, _ = cmd.Flags().GetString("timezone")
+	}
+	if cmd.Flags().Lookup("browser") != nil {
+		cfg.Browser, _ = cmd.Flags().GetString("browser")
+	}
+	if cmd.Flags().Lookup("database") != nil {
+		cfg.Database, _ = cmd.Flags().GetString("database")
+	}
+	if cmd.Flags().Lookup("user") != nil {
+		cfg.User, _ = cmd.Flags().GetString("user")
+	}
+	if cmd.Flags().Lookup("limit") != nil {
+		cfg.Limit, _ = cmd.Flags().GetString("limit")
+	}
+	if cmd.Flags().Lookup("summary") != nil {
+		cfg.Summary, _ = cmd.Flags().GetBool("summary")
+	}
+	if cmd.Flags().Lookup("compress") != nil {
+		cfg.Compress, _ = cmd.Flags().GetInt("compress")
+	}
+	if cmd.Flags().Lookup("format") != nil {
+		cfg.Format, _ = cmd.Flags().GetString("format")
+	}
+	if cmd.Flags().Lookup("output") != nil {
+		cfg.Output, _ = cmd.Flags().GetString("output")
+	}
+	if cmd.Flags().Lookup("connect") != nil {
+		cfg.Connect, _ = cmd.Flags().GetString("connect")
+	}
+	if cmd.Flags().Lookup("conflict") != nil {
+		cfg.Conflict, _ = cmd.Flags().GetString("conflict")
+	}
+	if cmd.Flags().Lookup("mode") != nil {
+		cfg.Mode, _ = cmd.Flags().GetString("mode")
+	}
+	if cmd.Flags().Lookup("flat") != nil {
+		cfg.Flat, _ = cmd.Flags().GetBool("flat")
+	}
+	
+	return cfg
+}
+
 func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
+	cfg := parseConfig(cmd)
+
 	// 1. Resolve Timezone
 	var loc *time.Location
-	if timezone != "" {
-		if timezone == "local" {
+	if cfg.Timezone != "" {
+		if cfg.Timezone == "local" {
 			loc = time.Local
 		} else {
 			var err error
-			loc, err = time.LoadLocation(timezone)
+			loc, err = time.LoadLocation(cfg.Timezone)
 			if err != nil {
-				return fmt.Errorf("invalid timezone %q: %v", timezone, err)
+				return fmt.Errorf("invalid timezone %q: %v", cfg.Timezone, err)
 			}
 		}
 	} else {
@@ -186,7 +301,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 	now := time.Now().In(loc)
 	var fromVal, toVal time.Time
 
-	if fromFlag == "" && toFlag == "" {
+	if cfg.From == "" && cfg.To == "" {
 		var err error
 		fromVal, err = utils.ParseTimeHelper("today", now, loc)
 		if err != nil {
@@ -194,9 +309,9 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 		}
 		toVal = now
 	} else {
-		if fromFlag != "" {
+		if cfg.From != "" {
 			var err error
-			fromVal, err = utils.ParseTimeHelper(fromFlag, now, loc)
+			fromVal, err = utils.ParseTimeHelper(cfg.From, now, loc)
 			if err != nil {
 				return err
 			}
@@ -204,9 +319,9 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 			fromVal = time.Unix(0, 0).UTC()
 		}
 
-		if toFlag != "" {
+		if cfg.To != "" {
 			var err error
-			toVal, err = utils.ParseTimeHelper(toFlag, now, loc)
+			toVal, err = utils.ParseTimeHelper(cfg.To, now, loc)
 			if err != nil {
 				return err
 			}
@@ -214,7 +329,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 	}
 
 	// 3. Resolve Home Directory and Detector
-	homeDir, err := browser.GetHomeDirForUser(userFlag)
+	homeDir, err := browser.GetHomeDirForUser(cfg.User)
 	if err != nil {
 		return err
 	}
@@ -222,22 +337,22 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 
 	// 4. Parse DB Paths
 	var browsersFlagList []string
-	if browserFlag != "" {
-		browsersFlagList = strings.Split(browserFlag, ",")
+	if cfg.Browser != "" {
+		browsersFlagList = strings.Split(cfg.Browser, ",")
 	}
-	dbPaths, err := parseDBPaths(dbFlag, browsersFlagList)
+	dbPaths, err := parseDBPaths(cfg.Database, browsersFlagList)
 	if err != nil {
 		return err
 	}
 
 	// 5. Resolve Selected Browsers
-	browsers, err := resolveBrowsers(browserFlag, detector, dbPaths)
+	browsers, err := resolveBrowsers(cfg.Browser, detector, dbPaths)
 	if err != nil {
 		return err
 	}
 
 	// 6. Parse Limits
-	browserLimits, totalLimit, err := parseLimit(limitFlag)
+	browserLimits, totalLimit, err := parseLimit(cfg.Limit)
 	if err != nil {
 		return err
 	}
@@ -251,7 +366,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 		entries, err := database.Query(b, fromVal, toVal)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to query %s (profile: %s): %v\n", b.Name, b.Profile, err)
-			if browserFlag != "" {
+			if cfg.Browser != "" {
 				return fmt.Errorf("failed to query %s (profile: %s): %v", b.Name, b.Profile, err)
 			}
 			continue
@@ -276,7 +391,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 		allEntries = allEntries[:totalLimit]
 	}
 
-	showSummary := summary
+	showSummary := cfg.Summary
 
 	// If stats subcommand is chosen, display stats
 	if statsOnly {
@@ -285,12 +400,12 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 
 	// 9. Ingest directly if connect string is provided (only via ingest subcommand)
 	if ingestOnly {
-		inserted, err := database.Ingest(connectStr, allEntries, conflictStrategy, modeFlag, flatFlag)
+		inserted, err := database.Ingest(cfg.Connect, allEntries, cfg.Conflict, cfg.Mode, cfg.Flat)
 		if err != nil {
 			return err
 		}
 		if showSummary {
-			fmt.Fprintf(os.Stderr, "Successfully ingested %d entries into %s using %s mode (flat: %t)\n", inserted, connectStr, modeFlag, flatFlag)
+			fmt.Fprintf(os.Stderr, "Successfully ingested %d entries into %s using %s mode (flat: %t)\n", inserted, cfg.Connect, cfg.Mode, cfg.Flat)
 		}
 		return nil
 	}
@@ -299,8 +414,8 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 	var out io.Writer = os.Stdout
 	var fileToClose *os.File
 
-	if outputFile != "" {
-		f, err := os.Create(outputFile)
+	if cfg.Output != "" {
+		f, err := os.Create(cfg.Output)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %v", err)
 		}
@@ -309,11 +424,11 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 	}
 
 	var closer io.WriteCloser
-	if compressCount > 0 {
-		if compressCount == 1 {
+	if cfg.Compress > 0 {
+		if cfg.Compress == 1 {
 			closer = gzip.NewWriter(out)
 			out = closer
-		} else if compressCount == 2 {
+		} else if cfg.Compress == 2 {
 			var err error
 			closer, err = bzip2.NewWriter(out, &bzip2.WriterConfig{Level: bzip2.BestCompression})
 			if err != nil {
@@ -340,18 +455,18 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 	}()
 
 	// 11. Format output
-	formatFlag = strings.ToLower(strings.TrimSpace(formatFlag))
-	switch formatFlag {
+	formatVal := strings.ToLower(strings.TrimSpace(cfg.Format))
+	switch formatVal {
 	case "table":
 		err = output.FormatTable(out, allEntries)
 	case "json":
-		err = output.FormatJSON(out, allEntries, strings.Join(browserNames, ", "), fromVal, toVal, timezone)
+		err = output.FormatJSON(out, allEntries, strings.Join(browserNames, ", "), fromVal, toVal, cfg.Timezone)
 	case "jsonl":
 		err = output.FormatJSONLines(out, allEntries)
 	case "csv":
 		err = output.FormatCSV(out, allEntries)
 	default:
-		return fmt.Errorf("unsupported output format %q", formatFlag)
+		return fmt.Errorf("unsupported output format %q", cfg.Format)
 	}
 
 	if err != nil {

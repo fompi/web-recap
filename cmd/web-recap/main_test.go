@@ -11,26 +11,29 @@ import (
 	"testing"
 
 	"github.com/rzolkos/web-recap/internal/browser"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	_ "modernc.org/sqlite"
 )
 
+func init() {
+	osExit = func(code int) {
+		// Mock exit to prevent test runner from exiting
+	}
+}
+
 // Helper to reset Cobra's global flags before each test run.
 func resetFlags() {
-	fromFlag = ""
-	toFlag = ""
-	timezone = ""
-	browserFlag = ""
-	formatFlag = "table"
-	outputFile = ""
-	dbFlag = ""
-	userFlag = ""
-	summary = true
-	compressCount = 0
-	connectStr = ""
-	conflictStrategy = "skip"
-	modeFlag = "merged"
-	limitFlag = ""
-	flatFlag = false
+	for _, cmd := range []*cobra.Command{rootCmd, dumpCmd, statsCmd, ingestCmd, listCmd} {
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+			_ = f.Value.Set(f.DefValue)
+			f.Changed = false
+		})
+		cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+			_ = f.Value.Set(f.DefValue)
+			f.Changed = false
+		})
+	}
 }
 
 // Helper to capture stdout and stderr during test execution.
@@ -70,20 +73,30 @@ func captureOutput(f func() error) (string, string, error) {
 
 func TestCLI_Version(t *testing.T) {
 	resetFlags()
-	rootCmd.SetArgs([]string{"version"})
 
-	stdout, stderr, err := captureOutput(func() error {
+	// Test --version
+	rootCmd.SetArgs([]string{"--version"})
+	stdout, _, err := captureOutput(func() error {
 		return rootCmd.Execute()
 	})
-
 	if err != nil {
-		t.Fatalf("version cmd failed: %v", err)
+		t.Fatalf("--version failed: %v", err)
 	}
-
 	if !strings.Contains(stdout, "web-recap version") {
 		t.Errorf("expected version output, got: %q", stdout)
 	}
-	_ = stderr
+
+	// Test -V
+	rootCmd.SetArgs([]string{"-V"})
+	stdout, _, err = captureOutput(func() error {
+		return rootCmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("-V failed: %v", err)
+	}
+	if !strings.Contains(stdout, "web-recap version") {
+		t.Errorf("expected version output, got: %q", stdout)
+	}
 }
 
 func TestCLI_List(t *testing.T) {
@@ -593,7 +606,7 @@ func TestParseLimit(t *testing.T) {
 
 func TestCLI_Main(t *testing.T) {
 	resetFlags()
-	rootCmd.SetArgs([]string{"version"})
+	rootCmd.SetArgs([]string{"--version"})
 	_, _, err := captureOutput(func() error {
 		main()
 		return nil

@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented the dual-packaging directory structure (root-level `debian/` vs `packaging/`) in `README.md`.
 - Upgraded GitHub Actions CI/CD workflows to use modern, non-deprecated actions (`setup-go@v5`, `cache@v4`, and `action-gh-release@v2`).
 - Added `linux-arm64` cross-compilation build target to the `Makefile` and GitHub Actions release workflow.
+- Refactored CLI flags to eliminate mutable global variables, moving config parsing to a dedicated `Config` struct.
+- Consolidated the duplicate `--user` flag registration into `rootCmd` persistent flags.
+- Replaced the `version` subcommand with global `--version` (`-V`) flags on the root command.
+- Hid the redundant `help` subcommand from the root command help output.
+- Implemented a concise help/usage output on syntax errors or no arguments, keeping full help display only on explicit request.
+
 
 
 
