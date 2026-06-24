@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-24
+
 ### Added
 - Added Vivaldi browser support (Linux, macOS, and Windows) — history is extracted using the same Chromium-based path and profile logic already used for Chrome, Edge, and Brave.
 - `web-recap list` now annotates each profile with its access status (`[Readable]`, `[Access Denied (requires Full Disk Access)]`, or `[Not found]`), matching what the README already described (#28).

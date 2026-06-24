@@ -1,7 +1,7 @@
 .PHONY: build build-lean build-all build-all-lean test clean install help
 
 # Variables
-VERSION ?= 0.4.0
+VERSION ?= 0.5.0
 BINARY_NAME := web-recap
 DIST_DIR := dist
 BIN_DIR := bin
