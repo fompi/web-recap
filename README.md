@@ -22,7 +22,7 @@ Extract browser history from Chrome, Chromium, Brave, Firefox, Safari, and Edge 
 
 ### Download Binary
 
-Download the latest binary from [GitHub Releases](https://github.com/robzolkos/web-recap/releases):
+Download the latest binary from [GitHub Releases](https://github.com/fompi/web-recap/releases):
 
 | Platform | Binary |
 |----------|--------|
@@ -33,7 +33,7 @@ Download the latest binary from [GitHub Releases](https://github.com/robzolkos/w
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/robzolkos/web-recap/releases/latest/download/web-recap-darwin-arm64 -o ~/.local/bin/web-recap
+curl -L https://github.com/fompi/web-recap/releases/latest/download/web-recap-darwin-arm64 -o ~/.local/bin/web-recap
 chmod +x ~/.local/bin/web-recap
 ```
 
