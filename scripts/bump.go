@@ -107,11 +107,21 @@ func main() {
 	}
 
 	// 5. Update cmd/web-recap/main.go
-	if err := replaceInFile(
-		filepath.Join("cmd", "web-recap", "main.go"),
-		`version          = "`+oldVersion+`"`,
-		`version          = "`+newVersion+`"`,
-	); err != nil {
+	mainBytes, err := os.ReadFile(filepath.Join("cmd", "web-recap", "main.go"))
+	if err != nil {
+		fmt.Printf("Error updating main.go: %v\n", err)
+		osExit(1)
+	}
+	mainContent := string(mainBytes)
+	mainRegex := regexp.MustCompile(`(const|var)\s+version\s*=\s*"` + regexp.QuoteMeta(oldVersion) + `"`)
+	if !mainRegex.MatchString(mainContent) {
+		fmt.Printf("Error: could not find target content version pattern for %q in main.go\n", oldVersion)
+		osExit(1)
+	}
+	newMainContent := mainRegex.ReplaceAllStringFunc(mainContent, func(m string) string {
+		return strings.Replace(m, oldVersion, newVersion, 1)
+	})
+	if err := os.WriteFile(filepath.Join("cmd", "web-recap", "main.go"), []byte(newMainContent), 0644); err != nil {
 		fmt.Printf("Error updating main.go: %v\n", err)
 		osExit(1)
 	}

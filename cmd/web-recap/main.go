@@ -21,7 +21,7 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-const version = "0.3.4"
+const version = "0.4.0"
 
 var rootCmd = &cobra.Command{
 	Use:   "web-recap",

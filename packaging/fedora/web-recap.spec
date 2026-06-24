@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.3.4
+Version:        0.4.0
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,33 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.4.0-1
+- Fixed nanosecond handling in date range midnight boundary check for Chrome, Firefox, and Safari query handlers, ensuring non-midnight times are not incorrectly shifted.
+- Removed redundant sorting step in `database.Query()` since database SQL queries already retrieve entries pre-sorted descending.
+- Corrected MongoDB ingestion `insertedCount` calculation to sum `UpsertedCount` and `ModifiedCount` instead of `MatchedCount`, preventing inflated counts of unchanged records.
+- Optimized and secured `HasColumn` in SQLite utilities by querying `sqlite_master` and `PRAGMA table_info` instead of using `SELECT *`.
+- Captured and propagated errors from closing the output file and compressor (gzip, bzip2, or xz) to prevent silent data corruption.
+- Restrained compression flags (`-z`, `-zz`, `-zzz`) to require an output file, preventing compressed output on stdout.
+- Fixed `go.mod` warnings by promoting `github.com/spf13/pflag` and `golang.org/x/term` to direct dependencies.
+- Refactored `ingest.go` by splitting the monolithic ingestion logic into smaller, cohesive files (`ingest_sql.go` and `ingest_mongo.go`).
+- Configured `Makefile` to output compiled binaries to the `bin/` directory instead of the project root.
+- Documented the dual-packaging directory structure (root-level `debian/` vs `packaging/`) in `README.md`.
+- Audited and updated `README.md` examples and ingestion flag details to match the latest CLI syntax.
+- Audited and updated `SKILL.md` to align with the current CLI timezone, format, and compression flags, correcting JSON jq patterns.
+- Audited and synchronized the man page (`man/web-recap.1`) with recent CLI updates (removed version subcommand, updated conflict flag strategies, and renamed formats).
+- Upgraded GitHub Actions CI/CD workflows to use modern, non-deprecated actions (`setup-go@v5`, `cache@v4`, and `action-gh-release@v2`).
+- Added `linux-arm64` cross-compilation build target to the `Makefile` and GitHub Actions release workflow.
+- Refactored CLI flags to eliminate mutable global variables, moving config parsing to a dedicated `Config` struct.
+- Consolidated the duplicate `--user` flag registration into `rootCmd` persistent flags.
+- Replaced the `version` subcommand with global `--version` (`-V`) flags on the root command.
+- Hid the redundant `help` subcommand from the root command help output.
+- Implemented a concise help/usage output on syntax errors or no arguments, keeping full help display only on explicit request.
+- Renamed the aligned table output format from "table" to "text" (with default extension `.txt`) and implemented dynamic terminal width detection to automatically scale and truncate columns safely on interactive terminals, while outputting full data to non-terminal outputs like files or pipes.
+- Unified JSON output format to write a flat array of entries (removing the `HistoryReport` wrapper structure).
+- Configured JSON output to be automatically pretty-printed when outputting to stdout (terminal) and compact/minified when writing to a file.
+- Enhanced the stderr summary report to display the total entries, timezone, date range filter info, and a detailed breakdown of entries per browser and profile with counts and percentages.
+- Implemented smart output filename parsing to autodetect format and compression from the `-o` file extension (with filename-deduced extensions taking precedence over CLI flags), and automatically autocomplete file extensions when names without extensions are provided.
+
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.4-1
 - Comprehensive test suites for all packages (`internal/database`, `internal/browser`, `internal/output`, `internal/utils`, `cmd/web-recap`, and `scripts`), achieving nearly 100% test coverage across the codebase.
 - Fixed SQL injection vulnerability in browser-specific database table names by strictly sanitizing user-supplied browser names.
