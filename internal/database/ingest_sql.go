@@ -207,6 +207,9 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 		load_successful TINYINT,
 		http_non_get TINYINT,
 		synthesized TINYINT,
+		referrer_url TEXT,
+		visit_type_label VARCHAR(20),
+		source VARCHAR(10),
 		UNIQUE KEY unique_visit (browser, profile, timestamp, url(255))
 	)`
 
@@ -235,6 +238,9 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 		load_successful INT,
 		http_non_get INT,
 		synthesized INT,
+		referrer_url TEXT,
+		visit_type_label VARCHAR(20),
+		source VARCHAR(10),
 		CONSTRAINT unique_flat_visit UNIQUE (browser, profile, timestamp, url)
 	)`
 
@@ -263,6 +269,9 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 		load_successful INTEGER,
 		http_non_get INTEGER,
 		synthesized INTEGER,
+		referrer_url TEXT,
+		visit_type_label TEXT,
+		source TEXT,
 		UNIQUE (browser, profile, timestamp, url)
 	)`
 
@@ -360,6 +369,9 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				from_visit BIGINT,
 				segment_id BIGINT,
 				typed_count BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
+				source VARCHAR(10),
 				UNIQUE KEY unique_visit (browser, profile, timestamp, url(255))
 			)`, tbl)
 		case "postgres":
@@ -376,6 +388,9 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				from_visit BIGINT,
 				segment_id BIGINT,
 				typed_count BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
+				source VARCHAR(10),
 				CONSTRAINT unique_%s_visit UNIQUE (browser, profile, timestamp, url)
 			)`, tbl, tbl)
 		default: // sqlite
@@ -392,6 +407,9 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				from_visit INTEGER,
 				segment_id INTEGER,
 				typed_count INTEGER,
+				referrer_url TEXT,
+				visit_type_label TEXT,
+				source TEXT,
 				UNIQUE (browser, profile, timestamp, url)
 			)`, tbl)
 		}
@@ -413,6 +431,8 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				session BIGINT,
 				frequency BIGINT,
 				typed BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				UNIQUE KEY unique_visit (browser, profile, timestamp, url(255))
 			)`, tbl)
 		case "postgres":
@@ -429,6 +449,8 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				session BIGINT,
 				frequency BIGINT,
 				typed BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				CONSTRAINT unique_%s_visit UNIQUE (browser, profile, timestamp, url)
 			)`, tbl, tbl)
 		default: // sqlite
@@ -445,6 +467,8 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				session INTEGER,
 				frequency INTEGER,
 				typed INTEGER,
+				referrer_url TEXT,
+				visit_type_label TEXT,
 				UNIQUE (browser, profile, timestamp, url)
 			)`, tbl)
 		}
@@ -468,6 +492,8 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				load_successful TINYINT,
 				http_non_get TINYINT,
 				synthesized TINYINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				UNIQUE KEY unique_visit (browser, profile, timestamp, url(255))
 			)`, tbl)
 		case "postgres":
@@ -486,6 +512,8 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				load_successful INT,
 				http_non_get INT,
 				synthesized INT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				CONSTRAINT unique_%s_visit UNIQUE (browser, profile, timestamp, url)
 			)`, tbl, tbl)
 		default: // sqlite
@@ -504,6 +532,8 @@ func createSQLTables(db *sql.DB, driverName, mode string, flat bool) error {
 				load_successful INTEGER,
 				http_non_get INTEGER,
 				synthesized INTEGER,
+				referrer_url TEXT,
+				visit_type_label TEXT,
 				UNIQUE (browser, profile, timestamp, url)
 			)`, tbl)
 		}
@@ -590,6 +620,9 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				from_visit BIGINT,
 				segment_id BIGINT,
 				typed_count BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
+				source VARCHAR(10),
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		case "postgres":
@@ -600,6 +633,9 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				from_visit BIGINT,
 				segment_id BIGINT,
 				typed_count BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
+				source VARCHAR(10),
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		default: // sqlite
@@ -610,6 +646,9 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				from_visit INTEGER,
 				segment_id INTEGER,
 				typed_count INTEGER,
+				referrer_url TEXT,
+				visit_type_label TEXT,
+				source TEXT,
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		}
@@ -623,6 +662,8 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				session BIGINT,
 				frequency BIGINT,
 				typed BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		case "postgres":
@@ -633,6 +674,8 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				session BIGINT,
 				frequency BIGINT,
 				typed BIGINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		default: // sqlite
@@ -643,6 +686,8 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				session INTEGER,
 				frequency INTEGER,
 				typed INTEGER,
+				referrer_url TEXT,
+				visit_type_label TEXT,
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		}
@@ -658,6 +703,8 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				load_successful TINYINT,
 				http_non_get TINYINT,
 				synthesized TINYINT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		case "postgres":
@@ -670,6 +717,8 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				load_successful INT,
 				http_non_get INT,
 				synthesized INT,
+				referrer_url TEXT,
+				visit_type_label VARCHAR(20),
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		default: // sqlite
@@ -682,6 +731,8 @@ func createRelationalChildTable(driverName, tbl, browserType string) string {
 				load_successful INTEGER,
 				http_non_get INTEGER,
 				synthesized INTEGER,
+				referrer_url TEXT,
+				visit_type_label TEXT,
 				FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
 			)`, tbl)
 		}
@@ -749,31 +800,32 @@ func buildSQLInsertFlat(driver, tbl string, e models.HistoryEntry, conflict stri
 		e.VisitType, e.Session, e.Frequency, e.Typed,
 		e.RedirectSource, e.RedirectDestination, e.Origin, e.GenerationType,
 		boolToInt(e.LoadSuccessful), boolToInt(e.HTTPNonGET), boolToInt(e.Synthesized),
+		e.ReferrerURL, e.VisitTypeLabel, e.Source,
 	}
 
-	cols := "browser, profile, timestamp, url, title, domain, visit_count, visit_duration, transition, from_visit, segment_id, typed_count, visit_type, session, frequency, typed, redirect_source, redirect_destination, origin, generation_type, load_successful, http_non_get, synthesized"
+	cols := "browser, profile, timestamp, url, title, domain, visit_count, visit_duration, transition, from_visit, segment_id, typed_count, visit_type, session, frequency, typed, redirect_source, redirect_destination, origin, generation_type, load_successful, http_non_get, synthesized, referrer_url, visit_type_label, source"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed, redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed, redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label, source = EXCLUDED.source", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed, redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed, redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label, source = excluded.source", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed), redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed), redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label), source = VALUES(source)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -786,30 +838,31 @@ func buildSQLInsertChrome(driver, tbl string, e models.HistoryEntry, conflict st
 	args := []interface{}{
 		e.Browser, e.Profile, getSQLTime(driver, e.Timestamp), e.URL, e.Title, e.Domain, e.VisitCount,
 		e.VisitDuration, e.Transition, e.FromVisit, e.SegmentID, e.TypedCount,
+		e.ReferrerURL, e.VisitTypeLabel, e.Source,
 	}
-	cols := "browser, profile, timestamp, url, title, domain, visit_count, visit_duration, transition, from_visit, segment_id, typed_count"
+	cols := "browser, profile, timestamp, url, title, domain, visit_count, visit_duration, transition, from_visit, segment_id, typed_count, referrer_url, visit_type_label, source"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label, source = EXCLUDED.source", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label, source = excluded.source", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label), source = VALUES(source)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -822,30 +875,31 @@ func buildSQLInsertFirefox(driver, tbl string, e models.HistoryEntry, conflict s
 	args := []interface{}{
 		e.Browser, e.Profile, getSQLTime(driver, e.Timestamp), e.URL, e.Title, e.Domain, e.VisitCount,
 		e.FromVisit, e.VisitType, e.Session, e.Frequency, e.Typed,
+		e.ReferrerURL, e.VisitTypeLabel,
 	}
-	cols := "browser, profile, timestamp, url, title, domain, visit_count, from_visit, visit_type, session, frequency, typed"
+	cols := "browser, profile, timestamp, url, title, domain, visit_count, from_visit, visit_type, session, frequency, typed, referrer_url, visit_type_label"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, from_visit = EXCLUDED.from_visit, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, from_visit = EXCLUDED.from_visit, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, from_visit = excluded.from_visit, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, from_visit = excluded.from_visit, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), from_visit = VALUES(from_visit), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), from_visit = VALUES(from_visit), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -859,30 +913,31 @@ func buildSQLInsertSafari(driver, tbl string, e models.HistoryEntry, conflict st
 		e.Browser, e.Profile, getSQLTime(driver, e.Timestamp), e.URL, e.Title, e.Domain, e.VisitCount,
 		e.RedirectSource, e.RedirectDestination, e.Origin, e.GenerationType,
 		boolToInt(e.LoadSuccessful), boolToInt(e.HTTPNonGET), boolToInt(e.Synthesized),
+		e.ReferrerURL, e.VisitTypeLabel,
 	}
-	cols := "browser, profile, timestamp, url, title, domain, visit_count, redirect_source, redirect_destination, origin, generation_type, load_successful, http_non_get, synthesized"
+	cols := "browser, profile, timestamp, url, title, domain, visit_count, redirect_source, redirect_destination, origin, generation_type, load_successful, http_non_get, synthesized, referrer_url, visit_type_label"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, visit_count = EXCLUDED.visit_count, redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (browser, profile, timestamp, url) DO UPDATE SET title = excluded.title, domain = excluded.domain, visit_count = excluded.visit_count, redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE title = VALUES(title), domain = VALUES(domain), visit_count = VALUES(visit_count), redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -894,30 +949,31 @@ func buildSQLInsertChildChrome(driver, tbl string, historyID int64, e models.His
 	var q string
 	args := []interface{}{
 		historyID, e.VisitDuration, e.Transition, e.FromVisit, e.SegmentID, e.TypedCount,
+		e.ReferrerURL, e.VisitTypeLabel, e.Source,
 	}
-	cols := "history_id, visit_duration, transition, from_visit, segment_id, typed_count"
+	cols := "history_id, visit_duration, transition, from_visit, segment_id, typed_count, referrer_url, visit_type_label, source"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET visit_duration = EXCLUDED.visit_duration, transition = EXCLUDED.transition, from_visit = EXCLUDED.from_visit, segment_id = EXCLUDED.segment_id, typed_count = EXCLUDED.typed_count, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label, source = EXCLUDED.source", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET visit_duration = excluded.visit_duration, transition = excluded.transition, from_visit = excluded.from_visit, segment_id = excluded.segment_id, typed_count = excluded.typed_count, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label, source = excluded.source", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE visit_duration = VALUES(visit_duration), transition = VALUES(transition), from_visit = VALUES(from_visit), segment_id = VALUES(segment_id), typed_count = VALUES(typed_count), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label), source = VALUES(source)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -929,30 +985,31 @@ func buildSQLInsertChildFirefox(driver, tbl string, historyID int64, e models.Hi
 	var q string
 	args := []interface{}{
 		historyID, e.FromVisit, e.VisitType, e.Session, e.Frequency, e.Typed,
+		e.ReferrerURL, e.VisitTypeLabel,
 	}
-	cols := "history_id, from_visit, visit_type, session, frequency, typed"
+	cols := "history_id, from_visit, visit_type, session, frequency, typed, referrer_url, visit_type_label"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET from_visit = EXCLUDED.from_visit, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET from_visit = EXCLUDED.from_visit, visit_type = EXCLUDED.visit_type, session = EXCLUDED.session, frequency = EXCLUDED.frequency, typed = EXCLUDED.typed, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET from_visit = excluded.from_visit, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET from_visit = excluded.from_visit, visit_type = excluded.visit_type, session = excluded.session, frequency = excluded.frequency, typed = excluded.typed, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE from_visit = VALUES(from_visit), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE from_visit = VALUES(from_visit), visit_type = VALUES(visit_type), session = VALUES(session), frequency = VALUES(frequency), typed = VALUES(typed), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
@@ -965,30 +1022,31 @@ func buildSQLInsertChildSafari(driver, tbl string, historyID int64, e models.His
 	args := []interface{}{
 		historyID, e.RedirectSource, e.RedirectDestination, e.Origin, e.GenerationType,
 		boolToInt(e.LoadSuccessful), boolToInt(e.HTTPNonGET), boolToInt(e.Synthesized),
+		e.ReferrerURL, e.VisitTypeLabel,
 	}
-	cols := "history_id, redirect_source, redirect_destination, origin, generation_type, load_successful, http_non_get, synthesized"
+	cols := "history_id, redirect_source, redirect_destination, origin, generation_type, load_successful, http_non_get, synthesized, referrer_url, visit_type_label"
 
 	if driver == "postgres" {
-		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8"
+		placeholders := "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET redirect_source = EXCLUDED.redirect_source, redirect_destination = EXCLUDED.redirect_destination, origin = EXCLUDED.origin, generation_type = EXCLUDED.generation_type, load_successful = EXCLUDED.load_successful, http_non_get = EXCLUDED.http_non_get, synthesized = EXCLUDED.synthesized, referrer_url = EXCLUDED.referrer_url, visit_type_label = EXCLUDED.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO NOTHING", tbl, cols, placeholders)
 		}
 	} else if driver == "sqlite" {
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (history_id) DO UPDATE SET redirect_source = excluded.redirect_source, redirect_destination = excluded.redirect_destination, origin = excluded.origin, generation_type = excluded.generation_type, load_successful = excluded.load_successful, http_non_get = excluded.http_non_get, synthesized = excluded.synthesized, referrer_url = excluded.referrer_url, visit_type_label = excluded.visit_type_label", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT OR IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}
 	} else { // mysql
-		placeholders := "?, ?, ?, ?, ?, ?, ?, ?"
+		placeholders := "?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
 		switch conflict {
 		case "replace":
-			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized)", tbl, cols, placeholders)
+			q = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE redirect_source = VALUES(redirect_source), redirect_destination = VALUES(redirect_destination), origin = VALUES(origin), generation_type = VALUES(generation_type), load_successful = VALUES(load_successful), http_non_get = VALUES(http_non_get), synthesized = VALUES(synthesized), referrer_url = VALUES(referrer_url), visit_type_label = VALUES(visit_type_label)", tbl, cols, placeholders)
 		default:
 			q = fmt.Sprintf("INSERT IGNORE INTO %s (%s) VALUES (%s)", tbl, cols, placeholders)
 		}

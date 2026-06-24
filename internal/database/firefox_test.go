@@ -29,15 +29,16 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Fatalf("failed to open database: %v", err)
 	}
 
-	// Create Firefox schema tables
+	// Create Firefox schema tables — includes 'hidden' so the filter is exercised.
 	_, err = db.Exec(`
 		CREATE TABLE moz_places (
 			id INTEGER PRIMARY KEY,
 			url TEXT,
 			title TEXT,
 			visit_count INTEGER,
-			frecency INTEGER, -- testing 'frecency' column fallback
-			typed INTEGER
+			frecency INTEGER,
+			typed INTEGER,
+			hidden INTEGER DEFAULT 0
 		);
 		CREATE TABLE moz_historyvisits (
 			id INTEGER PRIMARY KEY,
@@ -53,15 +54,19 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Fatalf("failed to create tables: %v", err)
 	}
 
-	// Insert mock data
+	// Insert mock data.
 	// Firefox time = 1781956800 * 1000000 = 1781956800000000.
-	// We also insert an entry with visit_date = 0 to cover the isZero() check skip.
+	// hidden=0 → visible page; hidden=1 → subframe URL (should be filtered out).
+	// visit_date=0 → excluded by WHERE visit_date > 0.
 	_, err = db.Exec(`
-		INSERT INTO moz_places (id, url, title, visit_count, frecency, typed) VALUES (1, 'https://example.com/firefox1', 'Firefox Page', 3, 15, 1);
+		INSERT INTO moz_places (id, url, title, visit_count, frecency, typed, hidden) VALUES (1, 'https://example.com/firefox1', 'Firefox Page', 3, 15, 1, 0);
 		INSERT INTO moz_historyvisits (id, place_id, visit_date, from_visit, visit_type, session) VALUES (1, 1, 1781956800000000, 0, 5, 12345);
 
-		INSERT INTO moz_places (id, url, title, visit_count, frecency, typed) VALUES (2, 'https://example.com/zero', 'Zero Page', 1, 0, 0);
-		INSERT INTO moz_historyvisits (id, place_id, visit_date, from_visit, visit_type, session) VALUES (2, 2, 0, 0, 0, 0);
+		INSERT INTO moz_places (id, url, title, visit_count, frecency, typed, hidden) VALUES (2, 'https://internal.example.com/frame', 'Hidden Frame', 1, 0, 0, 1);
+		INSERT INTO moz_historyvisits (id, place_id, visit_date, from_visit, visit_type, session) VALUES (2, 2, 1781956800000000, 0, 1, 0);
+
+		INSERT INTO moz_places (id, url, title, visit_count, frecency, typed, hidden) VALUES (3, 'https://example.com/zero', 'Zero Page', 1, 0, 0, 0);
+		INSERT INTO moz_historyvisits (id, place_id, visit_date, from_visit, visit_type, session) VALUES (3, 3, 0, 0, 0, 0);
 	`)
 	db.Close()
 	if err != nil {
@@ -83,8 +88,12 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 	if entries[0].URL != "https://example.com/firefox1" {
 		t.Errorf("expected URL 'https://example.com/firefox1', got %q", entries[0].URL)
 	}
+	// visit_type=5 → "redirect"
+	if entries[0].VisitTypeLabel != "redirect" {
+		t.Errorf("expected VisitTypeLabel 'redirect', got %q", entries[0].VisitTypeLabel)
+	}
 
-	// Test 2: only start date
+	// Test 2: only start date — hidden entry is filtered, only 1 visible entry expected
 	entries, _ = handler.GetHistory(startDate, time.Time{})
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))
@@ -104,7 +113,7 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Errorf("expected 0 entries (excluding 12:00:00 visit), got %d", len(entries))
 	}
 
-	// Test 4: empty dates (limits to 10000)
+	// Test 4: empty dates — visible entry only; hidden and zero-date are excluded
 	entries, _ = handler.GetHistory(time.Time{}, time.Time{})
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))

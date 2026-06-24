@@ -33,6 +33,11 @@ type HistoryEntry struct {
 	LoadSuccessful      bool  `json:"load_successful,omitempty"`
 	HTTPNonGET          bool  `json:"http_non_get,omitempty"`
 	Synthesized         bool  `json:"synthesized,omitempty"`
+
+	// Normalized cross-browser fields
+	ReferrerURL    string `json:"referrer_url,omitempty"`
+	VisitTypeLabel string `json:"visit_type_label,omitempty"` // link|typed|bookmark|reload|redirect|download|other
+	Source         string `json:"source,omitempty"`           // local|synced
 }
 
 

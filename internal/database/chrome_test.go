@@ -29,14 +29,15 @@ func TestChromeHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Fatalf("failed to open database: %v", err)
 	}
 
-	// Create Chrome schema tables
+	// Create Chrome schema tables — includes 'hidden' so the filter is exercised.
 	_, err = db.Exec(`
 		CREATE TABLE urls (
 			id INTEGER PRIMARY KEY,
 			url TEXT,
 			title TEXT,
 			visit_count INTEGER,
-			typed_count INTEGER
+			typed_count INTEGER,
+			hidden INTEGER DEFAULT 0
 		);
 		CREATE TABLE visits (
 			id INTEGER PRIMARY KEY,
@@ -53,15 +54,19 @@ func TestChromeHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Fatalf("failed to create tables: %v", err)
 	}
 
-	// Insert mock data
+	// Insert mock data.
 	// Chrome time = (1781956800 + 11644473600) * 1000000 = 13426430400000000.
-	// We also insert an entry with visit_time = 0 to cover the isZero() check skip.
+	// hidden=0 → visible; hidden=1 → subframe-only (should be filtered out).
+	// visit_time=0 → excluded by WHERE visit_time > 0.
 	_, err = db.Exec(`
-		INSERT INTO urls (id, url, title, visit_count, typed_count) VALUES (1, 'https://example.com/chrome1', 'Chrome Page', 10, 2);
+		INSERT INTO urls (id, url, title, visit_count, typed_count, hidden) VALUES (1, 'https://example.com/chrome1', 'Chrome Page', 10, 2, 0);
 		INSERT INTO visits (id, url, visit_time, visit_duration, transition, from_visit, segment_id) VALUES (1, 1, 13426430400000000, 500, 1, 0, 99);
-		
-		INSERT INTO urls (id, url, title, visit_count, typed_count) VALUES (2, 'https://example.com/zero', 'Zero Page', 1, 0);
-		INSERT INTO visits (id, url, visit_time, visit_duration, transition, from_visit, segment_id) VALUES (2, 2, 0, 0, 0, 0, 0);
+
+		INSERT INTO urls (id, url, title, visit_count, typed_count, hidden) VALUES (2, 'https://example.com/hidden', 'Hidden Page', 1, 0, 1);
+		INSERT INTO visits (id, url, visit_time, visit_duration, transition, from_visit, segment_id) VALUES (2, 2, 13426430400000000, 0, 0, 0, 0);
+
+		INSERT INTO urls (id, url, title, visit_count, typed_count, hidden) VALUES (3, 'https://example.com/zero', 'Zero Page', 1, 0, 0);
+		INSERT INTO visits (id, url, visit_time, visit_duration, transition, from_visit, segment_id) VALUES (3, 3, 0, 0, 0, 0, 0);
 	`)
 	db.Close()
 	if err != nil {
@@ -83,8 +88,16 @@ func TestChromeHandler_GetHistory_AllBranches(t *testing.T) {
 	if entries[0].URL != "https://example.com/chrome1" {
 		t.Errorf("expected URL 'https://example.com/chrome1', got %q", entries[0].URL)
 	}
+	// transition=1 → "typed"
+	if entries[0].VisitTypeLabel != "typed" {
+		t.Errorf("expected VisitTypeLabel 'typed', got %q", entries[0].VisitTypeLabel)
+	}
+	// no visit_source table → local
+	if entries[0].Source != "local" {
+		t.Errorf("expected Source 'local', got %q", entries[0].Source)
+	}
 
-	// Test 2: only start date
+	// Test 2: only start date — hidden entry is filtered, only 1 visible entry expected
 	entries, _ = handler.GetHistory(startDate, time.Time{})
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))
@@ -104,7 +117,7 @@ func TestChromeHandler_GetHistory_AllBranches(t *testing.T) {
 		t.Errorf("expected 0 entries (excluding 12:00:00 visit), got %d", len(entries))
 	}
 
-	// Test 4: empty dates (limits to 10000)
+	// Test 4: empty dates — visible entry only; hidden and zero-time are excluded
 	entries, _ = handler.GetHistory(time.Time{}, time.Time{})
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))
@@ -159,7 +172,8 @@ func TestChromeHandler_GetHistory_ScanError(t *testing.T) {
 			url TEXT,
 			title TEXT,
 			visit_count INTEGER,
-			typed_count INTEGER
+			typed_count INTEGER,
+			hidden INTEGER DEFAULT 0
 		);
 		CREATE TABLE visits (
 			id INTEGER PRIMARY KEY,
@@ -178,7 +192,7 @@ func TestChromeHandler_GetHistory_ScanError(t *testing.T) {
 
 	// Insert invalid type for visit_count (string that cannot be parsed as int)
 	_, err = db.Exec(`
-		INSERT INTO urls (id, url, title, visit_count, typed_count) VALUES (1, 'https://example.com/chrome1', 'Chrome Page', 'invalid_int', 2);
+		INSERT INTO urls (id, url, title, visit_count, typed_count, hidden) VALUES (1, 'https://example.com/chrome1', 'Chrome Page', 'invalid_int', 2, 0);
 		INSERT INTO visits (id, url, visit_time, visit_duration, transition, from_visit, segment_id) VALUES (1, 1, 13426430400000000, 500, 1, 0, 99);
 	`)
 	db.Close()

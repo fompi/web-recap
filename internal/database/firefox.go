@@ -39,9 +39,6 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 	db, _ := sql.Open("sqlite", tempDB)
 	defer db.Close()
 
-	var query string
-	var args []interface{}
-
 	hasCol := func(table, col string) bool {
 		found, _ := HasColumn(db, table, col)
 		return found
@@ -84,6 +81,27 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		typedExpr = "COALESCE(p.typed, 0) as typed"
 	}
 
+	// Bug fix #1: filter subframe-only entries that Firefox marks as hidden.
+	// moz_places.hidden=1 rows are internal redirect hops and sub-frame URLs
+	// that never represent a top-level page navigation by the user.
+	hiddenFilter := ""
+	if hasCol("moz_places", "hidden") {
+		hiddenFilter = " AND p.hidden = 0"
+	}
+
+	// Bug fix #3: resolve the referrer URL by self-joining moz_historyvisits on
+	// from_visit and then joining moz_places to get the URL string.
+	// Previously only the raw from_visit integer was exposed, which callers cannot
+	// use without re-querying the database.
+	referrerJoin := ""
+	referrerURLExpr := "'' AS referrer_url"
+	if hasCol("moz_historyvisits", "from_visit") {
+		referrerJoin = `
+		LEFT JOIN moz_historyvisits pv    ON pv.id    = h.from_visit
+		LEFT JOIN moz_places        ref_p ON ref_p.id = pv.place_id`
+		referrerURLExpr = "COALESCE(ref_p.url, '') AS referrer_url"
+	}
+
 	selectFields := fmt.Sprintf(`
 		h.visit_date,
 		p.url,
@@ -93,15 +111,25 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		%s,
 		%s,
 		%s,
+		%s,
 		%s
-	`, titleExpr, visitCountExpr, fromVisitExpr, visitTypeExpr, sessionExpr, frequencyExpr, typedExpr)
+	`, titleExpr, visitCountExpr,
+		fromVisitExpr, visitTypeExpr,
+		sessionExpr, frequencyExpr, typedExpr,
+		referrerURLExpr)
 
-	if !startDate.IsZero() || !endDate.IsZero() {
-		query = "SELECT " + selectFields + `
+	fromClause := fmt.Sprintf(`
 		FROM moz_historyvisits h
 		JOIN moz_places p ON h.place_id = p.id
-		WHERE h.visit_date > 0
-		`
+		%s
+		WHERE h.visit_date > 0%s`,
+		referrerJoin, hiddenFilter)
+
+	var query string
+	var args []interface{}
+
+	if !startDate.IsZero() || !endDate.IsZero() {
+		query = "SELECT " + selectFields + fromClause
 
 		if !startDate.IsZero() {
 			firefoxStart := startDate.Unix() * 1000000
@@ -121,13 +149,7 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 
 		query += ` ORDER BY h.visit_date DESC`
 	} else {
-		query = "SELECT " + selectFields + `
-		FROM moz_historyvisits h
-		JOIN moz_places p ON h.place_id = p.id
-		WHERE h.visit_date > 0
-		ORDER BY h.visit_date DESC
-		LIMIT 10000
-		`
+		query = "SELECT " + selectFields + fromClause + ` ORDER BY h.visit_date DESC LIMIT 10000`
 	}
 
 	rows, err := db.Query(query, args...)
@@ -143,8 +165,13 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		var url, title string
 		var visitCount int
 		var fromVisit, visitType, session, frequency, typed int64
+		var referrerURL string
 
-		if err := rows.Scan(&firefoxTime, &url, &title, &visitCount, &fromVisit, &visitType, &session, &frequency, &typed); err != nil {
+		if err := rows.Scan(
+			&firefoxTime, &url, &title, &visitCount,
+			&fromVisit, &visitType, &session, &frequency, &typed,
+			&referrerURL,
+		); err != nil {
 			return nil, err
 		}
 
@@ -163,6 +190,10 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 			Session:    session,
 			Frequency:  frequency,
 			Typed:      typed,
+			ReferrerURL: referrerURL,
+			// Bug fix #4: decode Firefox's integer visit_type enum to a normalized
+			// string that callers can compare directly against Chrome and Safari entries.
+			VisitTypeLabel: DecodeFirefoxVisitType(visitType),
 		})
 	}
 

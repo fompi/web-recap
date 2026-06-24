@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
@@ -38,27 +39,65 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	db, _ := sql.Open("sqlite", tempDB)
 	defer db.Close()
 
+	hasCol := func(table, col string) bool {
+		found, _ := HasColumn(db, table, col)
+		return found
+	}
+
+	// Bug fix #1: filter subframe-only URLs that Chrome marks as hidden.
+	// Without this filter the caller receives internal redirect artifacts that
+	// never correspond to a page the user actually visited.
+	hiddenFilter := ""
+	if hasCol("urls", "hidden") {
+		hiddenFilter = " AND u.hidden = 0"
+	}
+
+	// Bug fix #3: resolve the referrer URL by self-joining visits+urls on from_visit.
+	// Previously only the raw from_visit integer (a visit row ID) was exposed, which
+	// callers cannot use without re-querying the database themselves.
+	referrerJoin := `
+		LEFT JOIN visits      pv    ON pv.id    = v.from_visit
+		LEFT JOIN urls        ref_u ON ref_u.id = pv.url`
+	referrerURLExpr := "COALESCE(ref_u.url, '') AS referrer_url"
+
+	// Bug fix #5: capture whether the visit originated from sync or local browsing.
+	// The visit_source table is present in Chromium ≥ M29; fall back to 'local'
+	// for older profiles or Chromium forks that omit it.
+	sourceJoin := ""
+	sourceExpr := "'local' AS source"
+	if HasTable(db, "visit_source") {
+		sourceJoin = "LEFT JOIN visit_source vs ON vs.id = v.id"
+		// source = 0 means SYNCED in Chrome's VisitSource enum; anything else is local
+		sourceExpr = "CASE WHEN vs.source = 0 THEN 'synced' ELSE 'local' END AS source"
+	}
+
+	selectFields := fmt.Sprintf(`
+		v.visit_time,
+		u.url,
+		COALESCE(u.title, '') AS title,
+		u.visit_count,
+		COALESCE(v.visit_duration, 0) AS visit_duration,
+		COALESCE(v.transition, 0) AS transition,
+		COALESCE(v.from_visit, 0) AS from_visit,
+		COALESCE(v.segment_id, 0) AS segment_id,
+		COALESCE(u.typed_count, 0) AS typed_count,
+		%s,
+		%s
+	`, referrerURLExpr, sourceExpr)
+
+	fromClause := fmt.Sprintf(`
+		FROM visits v
+		JOIN urls u ON v.url = u.id
+		%s
+		%s
+		WHERE v.visit_time > 0%s`,
+		referrerJoin, sourceJoin, hiddenFilter)
+
 	var query string
 	var args []interface{}
 
-	selectFields := `
-		v.visit_time,
-		u.url,
-		COALESCE(u.title, '') as title,
-		u.visit_count,
-		COALESCE(v.visit_duration, 0) as visit_duration,
-		COALESCE(v.transition, 0) as transition,
-		COALESCE(v.from_visit, 0) as from_visit,
-		COALESCE(v.segment_id, 0) as segment_id,
-		COALESCE(u.typed_count, 0) as typed_count
-	`
-
 	if !startDate.IsZero() || !endDate.IsZero() {
-		query = "SELECT " + selectFields + `
-		FROM visits v
-		JOIN urls u ON v.url = u.id
-		WHERE v.visit_time > 0
-		`
+		query = "SELECT " + selectFields + fromClause
 
 		if !startDate.IsZero() {
 			chromeStart := (startDate.Unix() + 11644473600) * 1000000
@@ -78,13 +117,7 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 
 		query += ` ORDER BY v.visit_time DESC`
 	} else {
-		query = "SELECT " + selectFields + `
-		FROM visits v
-		JOIN urls u ON v.url = u.id
-		WHERE v.visit_time > 0
-		ORDER BY v.visit_time DESC
-		LIMIT 10000
-		`
+		query = "SELECT " + selectFields + fromClause + ` ORDER BY v.visit_time DESC LIMIT 10000`
 	}
 
 	rows, err := db.Query(query, args...)
@@ -100,8 +133,13 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		var url, title string
 		var visitCount int
 		var visitDuration, transition, fromVisit, segmentID, typedCount int64
+		var referrerURL, source string
 
-		if err := rows.Scan(&chromeTime, &url, &title, &visitCount, &visitDuration, &transition, &fromVisit, &segmentID, &typedCount); err != nil {
+		if err := rows.Scan(
+			&chromeTime, &url, &title, &visitCount,
+			&visitDuration, &transition, &fromVisit, &segmentID, &typedCount,
+			&referrerURL, &source,
+		); err != nil {
 			return nil, err
 		}
 
@@ -120,6 +158,12 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			FromVisit:     fromVisit,
 			SegmentID:     segmentID,
 			TypedCount:    typedCount,
+			ReferrerURL:   referrerURL,
+			Source:        source,
+			// Bug fix #4: decode the transition bitmask to a normalized string so
+			// callers can compare visit types across browsers without knowing
+			// Chrome's internal encoding.
+			VisitTypeLabel: DecodeTransition(transition),
 		})
 	}
 

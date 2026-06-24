@@ -46,9 +46,6 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	db, _ := sql.Open("sqlite", tempDB)
 	defer db.Close()
 
-	var query string
-	var args []interface{}
-
 	hasCol := func(table, col string) bool {
 		found, _ := HasColumn(db, table, col)
 		return found
@@ -96,6 +93,26 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		synthesizedExpr = "COALESCE(hv.synthesized, 0) as synthesized"
 	}
 
+	// Bug fix #2: exclude visits where the page failed to load.
+	// Safari records every navigation attempt, including aborted and errored loads.
+	// Callers expect only pages the user actually saw, not DNS failures or timeouts.
+	loadSuccFilter := ""
+	if hasCol("history_visits", "load_successful") {
+		loadSuccFilter = " AND hv.load_successful = 1"
+	}
+
+	// Bug fix #3: resolve the referrer URL via the redirect_source self-FK.
+	// redirect_source points to a history_visits row that represents the origin of
+	// an HTTP redirect chain; its history_item gives us the referring URL string.
+	referrerJoin := ""
+	referrerURLExpr := "'' AS referrer_url"
+	if hasCol("history_visits", "redirect_source") {
+		referrerJoin = `
+		LEFT JOIN history_visits rv    ON rv.id    = hv.redirect_source
+		LEFT JOIN history_items  ref_i ON ref_i.id = rv.history_item`
+		referrerURLExpr = "COALESCE(ref_i.url, '') AS referrer_url"
+	}
+
 	selectFields := fmt.Sprintf(`
 		hv.visit_time,
 		hi.url,
@@ -107,15 +124,26 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		%s,
 		%s,
 		%s,
+		%s,
 		%s
-	`, titleExpr, redirectSourceExpr, redirectDestExpr, originExpr, genTypeExpr, loadSuccExpr, httpNonGetExpr, synthesizedExpr)
+	`, titleExpr,
+		redirectSourceExpr, redirectDestExpr,
+		originExpr, genTypeExpr,
+		loadSuccExpr, httpNonGetExpr, synthesizedExpr,
+		referrerURLExpr)
 
-	if !startDate.IsZero() || !endDate.IsZero() {
-		query = "SELECT " + selectFields + `
+	fromClause := fmt.Sprintf(`
 		FROM history_visits hv
 		JOIN history_items hi ON hv.history_item = hi.id
-		WHERE hv.visit_time > 0
-		`
+		%s
+		WHERE hv.visit_time > 0%s`,
+		referrerJoin, loadSuccFilter)
+
+	var query string
+	var args []interface{}
+
+	if !startDate.IsZero() || !endDate.IsZero() {
+		query = "SELECT " + selectFields + fromClause
 
 		if !startDate.IsZero() {
 			safariStart := startDate.Unix() - safariEpochDiff
@@ -135,13 +163,7 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 
 		query += ` ORDER BY hv.visit_time DESC`
 	} else {
-		query = "SELECT " + selectFields + `
-		FROM history_visits hv
-		JOIN history_items hi ON hv.history_item = hi.id
-		WHERE hv.visit_time > 0
-		ORDER BY hv.visit_time DESC
-		LIMIT 10000
-		`
+		query = "SELECT " + selectFields + fromClause + ` ORDER BY hv.visit_time DESC LIMIT 10000`
 	}
 
 	rows, err := db.Query(query, args...)
@@ -158,8 +180,15 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		var visitCount int
 		var redirectSource, redirectDestination, origin, generationType int64
 		var loadSuccessful, httpNonGET, synthesized int
+		var referrerURL string
 
-		if err := rows.Scan(&safariTime, &url, &title, &visitCount, &redirectSource, &redirectDestination, &origin, &generationType, &loadSuccessful, &httpNonGET, &synthesized); err != nil {
+		if err := rows.Scan(
+			&safariTime, &url, &title, &visitCount,
+			&redirectSource, &redirectDestination,
+			&origin, &generationType,
+			&loadSuccessful, &httpNonGET, &synthesized,
+			&referrerURL,
+		); err != nil {
 			return nil, err
 		}
 
@@ -180,6 +209,11 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			LoadSuccessful:      loadSuccessful != 0,
 			HTTPNonGET:          httpNonGET != 0,
 			Synthesized:         synthesized != 0,
+			ReferrerURL:         referrerURL,
+			// Bug fix #4: infer a normalized visit type from Safari's boolean flags.
+			// Safari has no visit-type enum; redirect is the only type recoverable
+			// from the schema.
+			VisitTypeLabel: DecodeSafariVisitType(redirectSource, redirectDestination, synthesized != 0, httpNonGET != 0),
 		})
 	}
 

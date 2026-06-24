@@ -14,6 +14,72 @@ import (
 
 const safariEpochDiff = 978307200
 
+// HasTable checks if a table exists in the SQLite database.
+func HasTable(db *sql.DB, tableName string) bool {
+	for _, r := range tableName {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_') {
+			return false
+		}
+	}
+	var name string
+	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", tableName).Scan(&name)
+	return err == nil
+}
+
+// DecodeTransition decodes Chrome's transition bitmask (low byte) into a normalized visit-type string.
+// The low byte of the transition field encodes the core type; upper bits are qualifier flags.
+func DecodeTransition(transition int64) string {
+	switch transition & 0xff {
+	case 0:
+		return "link"
+	case 1:
+		return "typed"
+	case 2:
+		return "bookmark"
+	case 5:
+		return "reload"
+	case 6:
+		return "redirect"
+	case 7:
+		return "download"
+	default:
+		return "other"
+	}
+}
+
+// DecodeFirefoxVisitType maps Firefox's integer visit_type enum to a normalized visit-type string.
+// Types 5 and 6 are permanent and temporary redirects respectively; both collapse to "redirect".
+func DecodeFirefoxVisitType(visitType int64) string {
+	switch visitType {
+	case 1:
+		return "link"
+	case 2:
+		return "typed"
+	case 3:
+		return "bookmark"
+	case 5, 6:
+		return "redirect"
+	case 7:
+		return "download"
+	case 9:
+		return "reload"
+	default:
+		return "other"
+	}
+}
+
+// DecodeSafariVisitType infers a normalized visit-type string from Safari's boolean visit flags.
+// Safari has no visit-type enum; redirect is the only type distinguishable from the schema.
+func DecodeSafariVisitType(redirectSource, redirectDestination int64, synthesized, httpNonGET bool) string {
+	if redirectSource != 0 || redirectDestination != 0 {
+		return "redirect"
+	}
+	if synthesized || httpNonGET {
+		return "other"
+	}
+	return "link"
+}
+
 // HasColumn checks if a column exists in a given table
 func HasColumn(db *sql.DB, tableName, columnName string) (bool, error) {
 	// Validate table name to avoid SQL injection
