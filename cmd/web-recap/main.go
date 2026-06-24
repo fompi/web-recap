@@ -115,6 +115,10 @@ func init() {
 		sub.Flags().StringP("browser", "b", "", "Comma-separated list of browsers (defaults to all)")
 		sub.Flags().StringP("database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
 		sub.Flags().StringP("limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
+	}
+	// --summary controls the one-line stderr report; stats output goes to stdout
+	// and IS the report, so the flag does not apply to statsCmd.
+	for _, sub := range []*cobra.Command{dumpCmd, ingestCmd} {
 		sub.Flags().BoolP("summary", "s", true, "Show summary on stderr")
 	}
 
