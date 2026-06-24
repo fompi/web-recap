@@ -160,6 +160,14 @@ If you need detailed information about the tables structure for database ingesti
 
 ---
 
+## Packaging Structure
+
+This repository uses a dual-packaging structure:
+- The `debian/` directory is located directly in the root of the project. This is a technical requirement of Debian packaging tools (like `dpkg-buildpackage`), which expect the `debian` configuration directory to be at the root of the source tree.
+- Packaging configurations for other distributions (such as Arch Linux and Fedora) are isolated under the `packaging/` directory.
+
+---
+
 ## Contributing & Development
 
 We welcome issues and pull requests! The codebase maintains near 100% test coverage across all core packages. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to set up your environment, run tests, and execute the automated release process.
