@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimized and secured `HasColumn` in SQLite utilities by querying `sqlite_master` and `PRAGMA table_info` instead of using `SELECT *`.
 - Captured and propagated errors from closing the output file and compressor (gzip, bzip2, or xz) to prevent silent data corruption.
 - Restrained compression flags (`-z`, `-zz`, `-zzz`) to require an output file, preventing compressed output on stdout.
+- Fixed `go.mod` warnings by promoting `github.com/spf13/pflag` and `golang.org/x/term` to direct dependencies.
 
 
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented the dual-packaging directory structure (root-level `debian/` vs `packaging/`) in `README.md`.
 - Audited and updated `README.md` examples and ingestion flag details to match the latest CLI syntax.
 - Audited and updated `SKILL.md` to align with the current CLI timezone, format, and compression flags, correcting JSON jq patterns.
+- Audited and synchronized the man page (`man/web-recap.1`) with recent CLI updates (removed version subcommand, updated conflict flag strategies, and renamed formats).
 - Upgraded GitHub Actions CI/CD workflows to use modern, non-deprecated actions (`setup-go@v5`, `cache@v4`, and `action-gh-release@v2`).
 - Added `linux-arm64` cross-compilation build target to the `Makefile` and GitHub Actions release workflow.
 - Refactored CLI flags to eliminate mutable global variables, moving config parsing to a dedicated `Config` struct.
