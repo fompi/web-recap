@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configured `Makefile` to output compiled binaries to the `bin/` directory instead of the project root.
 - Documented the dual-packaging directory structure (root-level `debian/` vs `packaging/`) in `README.md`.
 - Audited and updated `README.md` examples and ingestion flag details to match the latest CLI syntax.
+- Audited and updated `SKILL.md` to align with the current CLI timezone, format, and compression flags, correcting JSON jq patterns.
 - Upgraded GitHub Actions CI/CD workflows to use modern, non-deprecated actions (`setup-go@v5`, `cache@v4`, and `action-gh-release@v2`).
 - Added `linux-arm64` cross-compilation build target to the `Makefile` and GitHub Actions release workflow.
 - Refactored CLI flags to eliminate mutable global variables, moving config parsing to a dedicated `Config` struct.
