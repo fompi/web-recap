@@ -16,8 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restrained compression flags (`-z`, `-zz`, `-zzz`) to require an output file, preventing compressed output on stdout.
 - Fixed `go.mod` warnings by promoting `github.com/spf13/pflag` and `golang.org/x/term` to direct dependencies.
 
-
-
 ### Changed
 - Refactored `ingest.go` by splitting the monolithic ingestion logic into smaller, cohesive files (`ingest_sql.go` and `ingest_mongo.go`).
 - Configured `Makefile` to output compiled binaries to the `bin/` directory instead of the project root.
@@ -37,16 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configured JSON output to be automatically pretty-printed when outputting to stdout (terminal) and compact/minified when writing to a file.
 - Enhanced the stderr summary report to display the total entries, timezone, date range filter info, and a detailed breakdown of entries per browser and profile with counts and percentages.
 - Implemented smart output filename parsing to autodetect format and compression from the `-o` file extension (with filename-deduced extensions taking precedence over CLI flags), and automatically autocomplete file extensions when names without extensions are provided.
-
-
-
-
-
-
-
-
-
-
 
 ## [0.3.4] - 2026-06-24
 
