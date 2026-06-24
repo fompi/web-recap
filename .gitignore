@@ -35,6 +35,7 @@ dist/
 # Temporary files
 *.tmp
 *.temp
+tmp/
 
 # Build output
 bin/
