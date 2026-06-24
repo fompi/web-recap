@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `FormatJSON` now emits `[]` instead of `null` when there are no history entries, preventing downstream consumers from receiving an unexpected null value (#22).
+- Summary line now reports the actual system timezone (via `loc.String()`) instead of always printing `UTC` when no `--timezone` flag is provided (#23).
+- `help` subcommand no longer appears in `--help` output on Cobra 1.10.x by overriding the usage template to remove its special-case exception (#24).
+- Removed `--summary` flag from the `stats` subcommand where it was registered but had no effect; the flag remains on `dump` and `ingest` (#26).
+- Renamed stats section heading from "Chrome-only" to "Chromium-based browsers" to accurately reflect that Edge, Brave, and Chromium also contribute visit-duration data (#27).
+
 ## [0.4.0] - 2026-06-24
 
 ### Fixed
