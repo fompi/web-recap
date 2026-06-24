@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.5.0
+Version:        0.5.1
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,17 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.5.1-1
+- Added `--valid-only` / `-v` flag to `dump`, `stats`, and `ingest` subcommands. When set, only successfully loaded and non-hidden visits are returned — equivalent to the filtering behaviour introduced in 0.5.0. Without the flag (default), all visits are returned and quality issues are exposed as metadata fields instead of silently dropped.
+- `HistoryEntry` now carries two data-quality metadata fields emitted in JSON/NDJSON output when relevant:
+- `load_successful` (`*bool`): Safari-only. Present when the `load_successful` column exists in the browser database; `false` indicates a failed page load (DNS error, timeout, user-cancelled navigation). Omitted for Chrome and Firefox entries, and for Safari databases that predate the column.
+- `hidden` (`bool`, `omitempty`): Chrome and Firefox only. Set to `true` when the URL was recorded as a subframe-only load or an internal redirect artifact (not a top-level navigation). Absent on entries where the browser's `hidden` column is 0 or does not exist.
+- Both quality fields are propagated through all ingest table definitions and INSERT builders for SQLite, Postgres, and MySQL (flat, browser-specific, and relational child tables).
+- All three browser handlers now resolve the referring visit's foreign key to an actual URL string via a self-join, exposed as `HistoryEntry.ReferrerURL`. Previously only the raw integer row ID was available (#33).
+- Added `HistoryEntry.VisitTypeLabel` (`link`|`typed`|`bookmark`|`reload`|`redirect`|`download`|`other`), populated by decoding Chrome's `transition` bitmask, Firefox's `visit_type` enum, and Safari's redirect/synthesized boolean flags. Raw browser-specific integers are still available as before (#34).
+- Chrome history extraction now joins the `visit_source` table (when present) and exposes `HistoryEntry.Source` as `local` or `synced`, distinguishing visits made on this device from those synced from other signed-in Chrome instances. Falls back to `local` for Chromium forks that predate the table (#35).
+- All three new fields (`referrer_url`, `visit_type_label`, `source`) are propagated through all ingest table definitions and INSERT builders for SQLite, Postgres, and MySQL.
+
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.5.0-1
 - Added Vivaldi browser support (Linux, macOS, and Windows) — history is extracted using the same Chromium-based path and profile logic already used for Chrome, Edge, and Brave.
 - `web-recap list` now annotates each profile with its access status (`[Readable]`, `[Access Denied (requires Full Disk Access)]`, or `[Not found]`), matching what the README already described (#28).

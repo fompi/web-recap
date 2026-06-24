@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-24
+
 ### Added
 - Added `--valid-only` / `-v` flag to `dump`, `stats`, and `ingest` subcommands. When set, only successfully loaded and non-hidden visits are returned — equivalent to the filtering behaviour introduced in 0.5.0. Without the flag (default), all visits are returned and quality issues are exposed as metadata fields instead of silently dropped.
 - `HistoryEntry` now carries two data-quality metadata fields emitted in JSON/NDJSON output when relevant:
