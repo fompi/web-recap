@@ -16,21 +16,47 @@ const safariEpochDiff = 978307200
 
 // HasColumn checks if a column exists in a given table
 func HasColumn(db *sql.DB, tableName, columnName string) (bool, error) {
-	rows, err := db.Query("SELECT * FROM " + tableName + " LIMIT 0")
+	// Validate table name to avoid SQL injection
+	for _, r := range tableName {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_') {
+			return false, fmt.Errorf("invalid table name: %s", tableName)
+		}
+	}
+
+	// Check if table exists
+	var name string
+	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", tableName).Scan(&name)
+	if err == sql.ErrNoRows {
+		return false, fmt.Errorf("table %s does not exist", tableName)
+	} else if err != nil {
+		return false, err
+	}
+
+	// Query column info
+	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", tableName))
 	if err != nil {
 		return false, err
 	}
 	defer rows.Close()
 
-	cols, _ := rows.Columns()
-
-	for _, col := range cols {
-		if strings.EqualFold(col, columnName) {
+	for rows.Next() {
+		var cid int
+		var name, dType string
+		var notnull, pk int
+		var dfltVal interface{}
+		if err := rows.Scan(&cid, &name, &dType, &notnull, &dfltVal, &pk); err != nil {
+			return false, err
+		}
+		if strings.EqualFold(name, columnName) {
 			return true, nil
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
 	return false, nil
 }
+
 
 
 // ConvertChromeTimestamp converts Chrome's timestamp format (microseconds since 1601-01-01) to Unix time
