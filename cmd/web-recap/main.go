@@ -278,7 +278,7 @@ func parseConfig(cmd *cobra.Command) Config {
 	return cfg
 }
 
-func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
+func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 	cfg := parseConfig(cmd)
 
 	// 1. Resolve Timezone
@@ -447,10 +447,22 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) error {
 
 	defer func() {
 		if closer != nil {
-			closer.Close()
+			if closeErr := closer.Close(); closeErr != nil {
+				if err == nil {
+					err = fmt.Errorf("failed to close compressor: %v", closeErr)
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: failed to close compressor: %v\n", closeErr)
+				}
+			}
 		}
 		if fileToClose != nil {
-			fileToClose.Close()
+			if closeErr := fileToClose.Close(); closeErr != nil {
+				if err == nil {
+					err = fmt.Errorf("failed to close output file: %v", closeErr)
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: failed to close output file: %v\n", closeErr)
+				}
+			}
 		}
 	}()
 

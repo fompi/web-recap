@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed redundant sorting step in `database.Query()` since database SQL queries already retrieve entries pre-sorted descending.
 - Corrected MongoDB ingestion `insertedCount` calculation to sum `UpsertedCount` and `ModifiedCount` instead of `MatchedCount`, preventing inflated counts of unchanged records.
 - Optimized and secured `HasColumn` in SQLite utilities by querying `sqlite_master` and `PRAGMA table_info` instead of using `SELECT *`.
+- Captured and propagated errors from closing the output file and compressor (gzip, bzip2, or xz) to prevent silent data corruption.
+
 
 ### Changed
 - Refactored `ingest.go` by splitting the monolithic ingestion logic into smaller, cohesive files (`ingest_sql.go` and `ingest_mongo.go`).
