@@ -323,7 +323,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 			return sortedDomainDurations[i].Duration > sortedDomainDurations[j].Duration
 		})
 
-		fmt.Fprintln(w, "Browsing Time Analysis (Chrome-only):")
+		fmt.Fprintln(w, "Browsing Time Analysis (Chromium-based browsers):")
 		fmt.Fprintf(w, "  - Total Active Time:   %s\n", formatDuration(totalDuration))
 		fmt.Fprintf(w, "  - Average Page Time:   %s\n", formatDuration(avgDuration))
 		fmt.Fprintln(w, "  - Top Domains by Duration:")

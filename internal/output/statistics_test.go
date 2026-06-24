@@ -248,8 +248,8 @@ func TestFormatStats_Comprehensive(t *testing.T) {
 	}
 
 	// Verify Chrome time analysis
-	if !strings.Contains(output, "Browsing Time Analysis (Chrome-only):") {
-		t.Errorf("missing Chrome browsing time analysis: %q", output)
+	if !strings.Contains(output, "Browsing Time Analysis (Chromium-based browsers):") {
+		t.Errorf("missing Chromium browsing time analysis: %q", output)
 	}
 	if !strings.Contains(output, "Total Active Time:") {
 		t.Errorf("missing Chrome total active time: %q", output)
