@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `stats` subcommand now surfaces three previously unused normalized fields and adds derived insights:
+  - **Source breakdown**: new section showing local vs. synced visit split; only displayed when synced data is present (#35 follow-up).
+  - **Referrer insights**: new section reporting direct vs. referred visits and the top 5 entry-point domains, derived from `HistoryEntry.ReferrerURL` (#33 follow-up).
+  - **Domain loyalty**: two summary lines appended below the top-10 domains table showing the ratio of one-time domains to return domains.
+  - **Time-of-day segments**: Night / Morning / Afternoon / Evening breakdowns appended below the hourly histogram.
+  - Navigation type decoding now uses `HistoryEntry.VisitTypeLabel` as the primary source (cross-browser normalized in #34) with the old per-browser bitmask/enum decoding kept as a fallback for legacy entries.
+
 ## [0.5.1] - 2026-06-24
 
 ### Added

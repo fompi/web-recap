@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -47,6 +48,42 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%ds", s)
 }
 
+// navCategoryFromLabel maps a normalized VisitTypeLabel to a display category.
+// Falls back to "Other / System" for unknown or empty labels.
+func navCategoryFromLabel(label string) string {
+	switch label {
+	case "link":
+		return "Clicked Link"
+	case "typed":
+		return "Typed / Direct"
+	case "bookmark":
+		return "Bookmarks"
+	case "reload":
+		return "Reloads"
+	case "redirect":
+		return "Redirects"
+	case "download":
+		return "Other / System"
+	default:
+		return "Other / System"
+	}
+}
+
+// referrerDomain extracts the hostname from a referrer URL, or "" if unparseable/empty.
+func referrerDomain(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	host := u.Hostname()
+	// Strip leading "www."
+	host = strings.TrimPrefix(host, "www.")
+	return host
+}
+
 // FormatStats prints a rich statistics analysis of the history to the writer
 func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime time.Time, loc *time.Location) error {
 	totalVisits := len(entries)
@@ -69,7 +106,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	var durationVisitsCount int
 	var chromeCount int
 
-	// Navigation modes / Transitions
+	// Navigation modes
 	navigationCounts := map[string]int{
 		"Clicked Link":   0,
 		"Typed / Direct": 0,
@@ -84,6 +121,13 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	var safariSuccessCount int
 	var safariHTTPNonGETCount int
 
+	// Source breakdown (local vs synced)
+	sourceCounts := map[string]int{"local": 0, "synced": 0}
+
+	// Referrer insights
+	referrerDomainCounts := make(map[string]int)
+	var referredCount int
+
 	for _, entry := range entries {
 		domainCounts[entry.Domain]++
 		urlCounts[entry.URL]++
@@ -96,6 +140,22 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		dayCounts[entryTimeLocal.Weekday()]++
 		dateStr := entryTimeLocal.Format("2006-01-02")
 		dailyVisits[dateStr]++
+
+		// Source tracking
+		switch entry.Source {
+		case "synced":
+			sourceCounts["synced"]++
+		default:
+			sourceCounts["local"]++
+		}
+
+		// Referrer tracking
+		if entry.ReferrerURL != "" {
+			referredCount++
+			if rd := referrerDomain(entry.ReferrerURL); rd != "" {
+				referrerDomainCounts[rd]++
+			}
+		}
 
 		// Chrome-specific active browsing time (visit_duration)
 		browserLower := strings.ToLower(entry.Browser)
@@ -127,58 +187,70 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 			}
 		}
 
-		// Navigation mode decoding
-		navType := "Other / System"
-		if isChromeFamily {
-			coreType := entry.Transition & 0xFF
-			isClientRedirect := (entry.Transition & 0x10000000) != 0
-			if isClientRedirect {
-				navType = "Redirects"
-			} else {
-				switch coreType {
-				case 0, 3, 4: // LINK, AUTO_SUBFRAME, MANUAL_SUBFRAME
+		// Navigation mode: prefer the normalized label; fall back to raw fields.
+		navType := ""
+		if entry.VisitTypeLabel != "" {
+			navType = navCategoryFromLabel(entry.VisitTypeLabel)
+		}
+		if navType == "" {
+			// Legacy fallback for entries that predate label normalization
+			if isChromeFamily {
+				coreType := entry.Transition & 0xFF
+				isClientRedirect := (entry.Transition & 0x10000000) != 0
+				if isClientRedirect {
+					navType = "Redirects"
+				} else {
+					switch coreType {
+					case 0, 3, 4:
+						navType = "Clicked Link"
+					case 1, 5, 9, 10:
+						navType = "Typed / Direct"
+					case 2:
+						navType = "Bookmarks"
+					case 8:
+						navType = "Reloads"
+					default:
+						navType = "Other / System"
+					}
+				}
+			} else if browserLower == "firefox" {
+				switch entry.VisitType {
+				case 1, 8:
 					navType = "Clicked Link"
-				case 1, 5, 9, 10: // TYPED, GENERATED, KEYWORD, KEYWORD_GENERATED
+				case 2:
 					navType = "Typed / Direct"
-				case 2: // AUTO_BOOKMARK
+				case 3:
 					navType = "Bookmarks"
-				case 8: // RELOAD
+				case 5, 6:
+					navType = "Redirects"
+				case 9:
 					navType = "Reloads"
+				default:
+					if entry.Typed == 1 {
+						navType = "Typed / Direct"
+					} else {
+						navType = "Other / System"
+					}
 				}
-			}
-		} else if browserLower == "firefox" {
-			// 1: LINK, 2: TYPED, 3: BOOKMARK, 4: EMBED, 5: REDIRECT_TEMP, 6: REDIRECT_PERM, 7: DOWNLOAD, 8: FRAMED_LINK, 9: RELOAD
-			switch entry.VisitType {
-			case 1, 8:
-				navType = "Clicked Link"
-			case 2:
-				navType = "Typed / Direct"
-			case 3:
-				navType = "Bookmarks"
-			case 5, 6:
-				navType = "Redirects"
-			case 9:
-				navType = "Reloads"
-			default:
-				if entry.Typed == 1 {
+			} else if browserLower == "safari" {
+				switch entry.GenerationType {
+				case 0:
+					navType = "Clicked Link"
+				case 1:
 					navType = "Typed / Direct"
+				case 2:
+					navType = "Redirects"
+				case 4:
+					navType = "Reloads"
+				default:
+					if entry.Origin == 1 {
+						navType = "Bookmarks"
+					} else {
+						navType = "Other / System"
+					}
 				}
-			}
-		} else if browserLower == "safari" {
-			// 0: Standard, 1: Typed, 2: Redirect, 3: Back/Forward, 4: Reload, 5: Synthesized
-			switch entry.GenerationType {
-			case 0:
-				navType = "Clicked Link"
-			case 1:
-				navType = "Typed / Direct"
-			case 2:
-				navType = "Redirects"
-			case 4:
-				navType = "Reloads"
-			default:
-				if entry.Origin == 1 { // BOOKMARK
-					navType = "Bookmarks"
-				}
+			} else {
+				navType = "Other / System"
 			}
 		}
 		navigationCounts[navType]++
@@ -202,7 +274,26 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		return sortedURLs[i].Count > sortedURLs[j].Count
 	})
 
-	// 4. Sessionization
+	// 4. Sort referrer domains
+	var sortedReferrerDomains []DomainStat
+	for d, c := range referrerDomainCounts {
+		sortedReferrerDomains = append(sortedReferrerDomains, DomainStat{Domain: d, Count: c})
+	}
+	sort.Slice(sortedReferrerDomains, func(i, j int) bool {
+		return sortedReferrerDomains[i].Count > sortedReferrerDomains[j].Count
+	})
+
+	// 5. Domain loyalty
+	var oneTimeDomains, returnDomains int
+	for _, c := range domainCounts {
+		if c == 1 {
+			oneTimeDomains++
+		} else {
+			returnDomains++
+		}
+	}
+
+	// 6. Sessionization
 	type Session struct {
 		StartTime time.Time
 		EndTime   time.Time
@@ -265,7 +356,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		avgSessionDuration = sumDuration / time.Duration(totalSessions)
 	}
 
-	// 5. Print stats header
+	// 7. Print stats header
 	fmt.Fprintln(w, "================================================================================")
 	fmt.Fprintln(w, "                            WEB HISTORY STATISTICS")
 	fmt.Fprintln(w, "================================================================================")
@@ -284,7 +375,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	fmt.Fprintf(w, "Unique Domains:  %d\n", len(domainCounts))
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
-	// Print browser breakdown
+	// Visits by browser
 	fmt.Fprintln(w, "Visits by Browser & Profile:")
 	var sortedBrowsers []string
 	for b := range browserCounts {
@@ -299,7 +390,17 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	}
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
-	// Print session analysis
+	// Source breakdown (only shown when synced data exists)
+	if sourceCounts["synced"] > 0 {
+		fmt.Fprintln(w, "Source Breakdown:")
+		localCount := sourceCounts["local"]
+		syncedCount := sourceCounts["synced"]
+		fmt.Fprintf(w, "  - %-30s %5d (%5.1f%%)\n", "Local (this device)", localCount, float64(localCount)/float64(totalVisits)*100)
+		fmt.Fprintf(w, "  - %-30s %5d (%5.1f%%)\n", "Synced (other devices)", syncedCount, float64(syncedCount)/float64(totalVisits)*100)
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Session analysis
 	if totalSessions > 0 {
 		fmt.Fprintln(w, "Browsing Sessions (Inactivity threshold: 30 mins):")
 		fmt.Fprintf(w, "  - Total Sessions:      %d\n", totalSessions)
@@ -311,7 +412,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 	}
 
-	// Print Chrome active time analysis if applicable
+	// Chrome active time analysis
 	if chromeCount > 0 && durationVisitsCount > 0 {
 		totalDuration := time.Duration(totalDurationMicro) * time.Microsecond
 		avgDuration := time.Duration(totalDurationMicro/int64(durationVisitsCount)) * time.Microsecond
@@ -345,7 +446,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 	}
 
-	// Print navigation methods breakdown
+	// Navigation methods breakdown
 	fmt.Fprintln(w, "Navigation Methods Breakdown:")
 	navCategories := []string{"Clicked Link", "Typed / Direct", "Bookmarks", "Redirects", "Reloads", "Other / System"}
 	for _, cat := range navCategories {
@@ -355,7 +456,27 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	}
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
-	// Print Safari metrics if applicable
+	// Referrer insights (only when referrer data is present)
+	if referredCount > 0 || len(referrerDomainCounts) > 0 {
+		directCount := totalVisits - referredCount
+		fmt.Fprintln(w, "Referrer Insights:")
+		fmt.Fprintf(w, "  - Direct visits (no referrer):  %5d (%5.1f%%)\n", directCount, float64(directCount)/float64(totalVisits)*100)
+		fmt.Fprintf(w, "  - Referred visits:              %5d (%5.1f%%)\n", referredCount, float64(referredCount)/float64(totalVisits)*100)
+		if len(sortedReferrerDomains) > 0 {
+			fmt.Fprintln(w, "  - Top entry-point domains:")
+			limit := 5
+			if len(sortedReferrerDomains) < limit {
+				limit = len(sortedReferrerDomains)
+			}
+			for i := 0; i < limit; i++ {
+				rd := sortedReferrerDomains[i]
+				fmt.Fprintf(w, "      %d. %-35s %d\n", i+1, rd.Domain, rd.Count)
+			}
+		}
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Safari metrics
 	if safariCount > 0 {
 		fmt.Fprintln(w, "Safari Performance Metrics:")
 		successRate := 100.0
@@ -367,7 +488,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 	}
 
-	// Print top 10 domains
+	// Top 10 domains
 	fmt.Fprintln(w, "Top 10 Domains:")
 	limitDomains := 10
 	if len(sortedDomains) < limitDomains {
@@ -378,9 +499,12 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		pct := (float64(d.Count) / float64(totalVisits)) * 100
 		fmt.Fprintf(w, "  %2d. %-40s %5d (%5.1f%%)\n", i+1, d.Domain, d.Count, pct)
 	}
+	totalDomains := len(domainCounts)
+	fmt.Fprintf(w, "  One-time domains (visited once):   %d / %d (%.1f%%)\n", oneTimeDomains, totalDomains, float64(oneTimeDomains)/float64(totalDomains)*100)
+	fmt.Fprintf(w, "  Return domains (visited 2+ times): %d / %d (%.1f%%)\n", returnDomains, totalDomains, float64(returnDomains)/float64(totalDomains)*100)
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
-	// Print top 10 pages
+	// Top 10 pages
 	fmt.Fprintln(w, "Top 10 Visited Pages:")
 	limitURLs := 10
 	if len(sortedURLs) < limitURLs {
@@ -396,7 +520,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	}
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
-	// Print weekly distribution
+	// Weekly distribution
 	fmt.Fprintln(w, "Weekly Activity Distribution:")
 	weekdayNames := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
 	maxDayCount := 0
@@ -439,7 +563,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	}
 	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 
-	// Print hourly activity histogram
+	// Hourly activity histogram
 	fmt.Fprintln(w, "Hourly Activity Histogram:")
 	maxHourCount := 0
 	for _, c := range hourlyCounts {
@@ -460,6 +584,29 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		}
 		fmt.Fprintf(w, "  %02d:00 - %02d:59: %-40s %d\n", hour, hour, bar, count)
 	}
+	fmt.Fprintln(w, "")
+
+	// Time-of-day segments
+	nightVisits := 0
+	for h := 0; h < 6; h++ {
+		nightVisits += hourlyCounts[h]
+	}
+	morningVisits := 0
+	for h := 6; h < 12; h++ {
+		morningVisits += hourlyCounts[h]
+	}
+	afternoonVisits := 0
+	for h := 12; h < 18; h++ {
+		afternoonVisits += hourlyCounts[h]
+	}
+	eveningVisits := 0
+	for h := 18; h < 24; h++ {
+		eveningVisits += hourlyCounts[h]
+	}
+	fmt.Fprintf(w, "  Night     (00–05): %5d visits (%5.1f%%)\n", nightVisits, float64(nightVisits)/float64(totalVisits)*100)
+	fmt.Fprintf(w, "  Morning   (06–11): %5d visits (%5.1f%%)\n", morningVisits, float64(morningVisits)/float64(totalVisits)*100)
+	fmt.Fprintf(w, "  Afternoon (12–17): %5d visits (%5.1f%%)\n", afternoonVisits, float64(afternoonVisits)/float64(totalVisits)*100)
+	fmt.Fprintf(w, "  Evening   (18–23): %5d visits (%5.1f%%)\n", eveningVisits, float64(eveningVisits)/float64(totalVisits)*100)
 	fmt.Fprintln(w, "================================================================================")
 
 	return nil
