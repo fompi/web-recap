@@ -62,18 +62,6 @@ var statsCmd = &cobra.Command{
 	},
 }
 
-var ingestCmd = &cobra.Command{
-	Use:     "ingest [flags]",
-	Short:   "Ingest browser history entries directly into a database",
-	Example: `  web-recap ingest -c sqlite://history.db
-  web-recap ingest -c postgres://user:pass@localhost/db -M split
-  web-recap ingest -c mongodb://localhost/history_db -M both -C replace`,
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runQuery(cmd, false, true)
-	},
-}
-
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List detected browsers and profiles",
@@ -119,7 +107,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("version", "V", false, "Show version")
 
 	// Add common filter flags to subcommands that query history
-	for _, sub := range []*cobra.Command{dumpCmd, statsCmd, ingestCmd} {
+	for _, sub := range append([]*cobra.Command{dumpCmd, statsCmd}, ingestFilterCmds()...) {
 		sub.Flags().StringP("from", "f", "", "Start date/time (e.g. today, yesterday, '3 days ago', or ISO8601)")
 		sub.Flags().StringP("to", "t", "", "End date/time (e.g. now, yesterday, or ISO8601). If time is exactly midnight, the range is implicitly extended by 24 hours to include the entire day.")
 		sub.Flags().StringP("timezone", "Z", "", "Timezone name (e.g. America/New_York, UTC, local)")
@@ -129,7 +117,7 @@ func init() {
 	}
 	// --summary controls the one-line stderr report; stats output goes to stdout
 	// and IS the report, so the flag does not apply to statsCmd.
-	for _, sub := range []*cobra.Command{dumpCmd, ingestCmd} {
+	for _, sub := range append([]*cobra.Command{dumpCmd}, ingestSummaryCmds()...) {
 		sub.Flags().BoolP("summary", "s", true, "Show summary on stderr")
 	}
 
@@ -138,21 +126,16 @@ func init() {
 	dumpCmd.Flags().StringP("format", "F", "text", "Output format (text, csv, json, jsonl)")
 	dumpCmd.Flags().StringP("output", "o", "", "Output to file path instead of stdout")
 
-	// Ingest-specific flags
-	ingestCmd.Flags().StringP("connect", "c", "", "Database connection string (e.g. mysql://user:pass@host/db) (Required)")
-	ingestCmd.Flags().StringP("conflict", "C", "skip", "Ingestion conflict strategy: skip, replace")
-	ingestCmd.Flags().StringP("mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
-	ingestCmd.Flags().BoolP("flat", "x", false, "Create flat tables repeating common data instead of relational schemas")
-	_ = ingestCmd.MarkFlagRequired("connect")
+	// Ingest-specific flags and command registration (conditional on build tags)
+	initIngestCmd()
 
 	// Set custom flag error handler on all commands
-	for _, cmd := range []*cobra.Command{rootCmd, dumpCmd, statsCmd, ingestCmd, listCmd} {
+	for _, cmd := range []*cobra.Command{rootCmd, dumpCmd, statsCmd, listCmd} {
 		cmd.SetFlagErrorFunc(handleFlagError)
 	}
 
 	rootCmd.AddCommand(dumpCmd)
 	rootCmd.AddCommand(statsCmd)
-	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(listCmd)
 
 	// Hide Cobra's default help command
@@ -191,23 +174,6 @@ func init() {
 
 var osExit = os.Exit
 
-func printShortHelp() {
-	fmt.Println(`Usage:
-  web-recap [command]
-
-Available Commands:
-  dump        Dump raw browser history entries
-  stats       Show history statistics and charts
-  ingest      Ingest browser history entries directly into a database
-  list        List detected browsers and profiles
-
-Examples:
-  web-recap dump --browser chrome
-  web-recap stats --from "7 days"
-  web-recap list
-
-Use "web-recap [command] --help" for more information about a command.`)
-}
 
 func handleFlagError(cmd *cobra.Command, err error) error {
 	fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)

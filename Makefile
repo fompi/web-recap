@@ -20,7 +20,7 @@ DARWIN_ARM64 := $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64
 WINDOWS_AMD64 := $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe
 
 # Lean platform targets (no Mongo/MySQL/Postgres)
-LEAN_TAGS := nomongo,nomysql,nopq
+LEAN_TAGS := nomongo,nomysql,nopq,noingest
 LINUX_AMD64_LEAN := $(DIST_DIR)/$(BINARY_NAME)-linux-amd64-lean
 LINUX_ARM64_LEAN := $(DIST_DIR)/$(BINARY_NAME)-linux-arm64-lean
 DARWIN_AMD64_LEAN := $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64-lean

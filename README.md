@@ -72,10 +72,10 @@ make build
 make build-lean
 
 # Or manually with go build
-go build -tags nomongo,nomysql,nopq -ldflags="-s -w" -o web-recap ./cmd/web-recap
+go build -tags nomongo,nomysql,nopq,noingest -ldflags="-s -w" -o web-recap ./cmd/web-recap
 ```
 
-Browser *reading* always uses SQLite (Chrome, Firefox, Safari, Edge, Brave, Vivaldi all store their history in SQLite files) and is never affected by these tags. The tags only control which *output* databases are available in the `ingest` subcommand.
+Browser *reading* always uses SQLite (Chrome, Firefox, Safari, Edge, Brave, Vivaldi all store their history in SQLite files) and is never affected by these tags. The tags control which *output* databases are available via the `ingest` subcommand. When all ingest backends are excluded, the `noingest` tag also removes the `ingest` subcommand from the binary entirely.
 
 ---
 

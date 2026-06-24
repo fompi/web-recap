@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added Vivaldi browser support (Linux, macOS, and Windows) — history is extracted using the same Chromium-based path and profile logic already used for Chrome, Edge, and Brave.
 - `web-recap list` now annotates each profile with its access status (`[Readable]`, `[Access Denied (requires Full Disk Access)]`, or `[Not found]`), matching what the README already described (#28).
-- Added optional build tags (`nomongo`, `nomysql`, `nopq`) to exclude the MongoDB, MySQL, and PostgreSQL output backends from the binary, reducing its size by ~46% (from ~16 MB to ~8.7 MB). The new `make build-lean` and `make build-all-lean` Makefile targets use these tags automatically. Browser reading is always unaffected since it relies on SQLite unconditionally.
+- Added optional build tags (`nomongo`, `nomysql`, `nopq`, `noingest`) to exclude database output backends and the `ingest` subcommand from the binary, reducing its size by ~46% (from ~16 MB to ~8.7 MB). The new `make build-lean` and `make build-all-lean` Makefile targets apply all four tags; when `noingest` is active the `ingest` subcommand is absent from help output and rejected at runtime. Browser reading is always unaffected since it relies on SQLite unconditionally.
 
 ### Changed
 - Consolidated the `modernc.org/sqlite` driver registration (previously duplicated across `chrome.go`, `firefox.go`, `safari.go`, and `detector.go`) into single dedicated files (`internal/database/drivers_sqlite.go`, `internal/browser/drivers_sqlite.go`). No behaviour change.
