@@ -157,6 +157,13 @@ func init() {
 			helpFunc(cmd, args)
 		},
 	})
+	// Cobra's built-in usage template special-cases the "help" command name so
+	// Hidden: true above is ignored. Strip that exception from the template.
+	rootCmd.SetUsageTemplate(strings.ReplaceAll(
+		rootCmd.UsageTemplate(),
+		`(or .IsAvailableCommand (eq .Name "help"))`,
+		`.IsAvailableCommand`,
+	))
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")
