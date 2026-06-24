@@ -7,7 +7,7 @@ web-recap \- Extract browser history in human-friendly or machine-friendly forma
 .RI [ flags ]
 .SH DESCRIPTION
 .B web-recap
-is a command line tool designed to extract browsing history from popular web browsers (Chrome, Chromium, Firefox, Safari, and Edge) on Linux, macOS, and Windows. It outputs the history in highly readable or structured formats (Table, CSV, JSON, and JSONLines) suitable for analysis by humans or LLMs, and can directly ingest browsing history into relational (SQLite, MySQL, PostgreSQL) and document (MongoDB) databases.
+is a command line tool designed to extract browsing history from popular web browsers (Chrome, Chromium, Firefox, Safari, and Edge) on Linux, macOS, and Windows. It outputs the history in highly readable or structured formats (Text, CSV, JSON, and JSONLines) suitable for analysis by humans or LLMs, and can directly ingest browsing history into relational (SQLite, MySQL, PostgreSQL) and document (MongoDB) databases.
 .SH COMMANDS
 .TP
 .B dump
@@ -21,11 +21,7 @@ Ingests queried browser history entries directly into a target database.
 .TP
 .B list
 Lists all detected web browsers and their local database file paths.
-.TP
-.B version
-Prints the current version of the tool.
 .SH FLAGS
-.TP
 .BI \-f\fR,\fB \-\-from " value"
 Start date/time for query. Supports ISO8601 strings (e.g. "2026-06-20T12:00:00Z") and relative keywords: "today", "yesterday", "start", "0", "now", or "N days/hours/minutes ago".
 .TP
@@ -65,12 +61,12 @@ Direct database ingestion connection string (e.g. "mysql://user:pass@localhost/d
 Ingestion mode. Options: "merged" (common columns in single table), "split" (separate tables per browser with raw columns), "both" (both merged and split tables). Default is "merged".
 .TP
 .BI \-C\fR,\fB \-\-conflict " strategy"
-Ingestion conflict strategy: "skip" (default), "replace", or "keep".
+Ingestion conflict strategy: "skip" (default) or "replace".
 .TP
 .BI \-x\fR,\fB \-\-flat
 Create flat tables repeating common data instead of relational schemas.
 .SH EXAMPLES
-Extract history from the last 3 days in table format:
+Extract history from the last 3 days in text format:
 .IP
 web-recap dump -f "3 days"
 .PP
