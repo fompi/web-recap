@@ -24,7 +24,7 @@ func TestSafariHandler_GetHistory_NonDarwin(t *testing.T) {
 	defer func() { isDarwinOS = oldIsDarwinOS }()
 
 	handler := NewSafariHandler("some-path", "safari", "profile")
-	_, err := handler.GetHistory(time.Time{}, time.Time{})
+	_, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if !errors.Is(err, ErrSafariNotAvailable) {
 		t.Errorf("expected ErrSafariNotAvailable, got %v", err)
 	}
@@ -91,7 +91,7 @@ func TestSafariHandler_GetHistory_AllOS_FullColumns(t *testing.T) {
 	// Test 1: date range (returns mock)
 	startDate := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)
-	entries, err := handler.GetHistory(startDate, endDate)
+	entries, err := handler.GetHistory(startDate, endDate, false)
 	if err != nil {
 		t.Fatalf("failed to get history: %v", err)
 	}
@@ -103,27 +103,27 @@ func TestSafariHandler_GetHistory_AllOS_FullColumns(t *testing.T) {
 	}
 
 	// Test 2: only start date
-	entries, _ = handler.GetHistory(startDate, time.Time{})
+	entries, _ = handler.GetHistory(startDate, time.Time{}, false)
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))
 	}
 
 	// Test 3: only end date (non-zero time, does not add 86400)
 	customEndDate := time.Date(2026, 6, 20, 15, 0, 0, 0, time.UTC)
-	entries, _ = handler.GetHistory(time.Time{}, customEndDate)
+	entries, _ = handler.GetHistory(time.Time{}, customEndDate, false)
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))
 	}
 
 	// Test 3b: end date with non-zero nanoseconds at 00:00:00 (does not add 86400)
 	nsEndDate := time.Date(2026, 6, 20, 0, 0, 0, 100, time.UTC)
-	entries, _ = handler.GetHistory(time.Time{}, nsEndDate)
+	entries, _ = handler.GetHistory(time.Time{}, nsEndDate, false)
 	if len(entries) != 0 {
 		t.Errorf("expected 0 entries (excluding 12:00:00 visit), got %d", len(entries))
 	}
 
 	// Test 4: empty dates (limits to 10000)
-	entries, _ = handler.GetHistory(time.Time{}, time.Time{})
+	entries, _ = handler.GetHistory(time.Time{}, time.Time{}, false)
 	if len(entries) != 1 {
 		t.Errorf("expected 1 entry, got %d", len(entries))
 	}
@@ -176,7 +176,7 @@ func TestSafariHandler_GetHistory_MissingColumns(t *testing.T) {
 	}
 
 	handler := NewSafariHandler(dbPath, "safari", "test-safari-profile")
-	entries, err := handler.GetHistory(time.Time{}, time.Time{})
+	entries, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err != nil {
 		t.Fatalf("failed to get history: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestSafariHandler_GetHistory_MissingColumns(t *testing.T) {
 		t.Errorf("expected Title 'Item Title' (fallback to items table), got %q", entry.Title)
 	}
 	// Verify missing columns defaults
-	if entry.RedirectSource != 0 || entry.Origin != 0 || entry.GenerationType != 0 || !entry.LoadSuccessful {
+	if entry.RedirectSource != 0 || entry.Origin != 0 || entry.GenerationType != 0 || entry.LoadSuccessful == nil || !*entry.LoadSuccessful {
 		t.Errorf("unexpected defaults for missing columns: %+v", entry)
 	}
 }
@@ -241,7 +241,7 @@ func TestSafariHandler_GetHistory_NoTitleAnywhere(t *testing.T) {
 	}
 
 	handler := NewSafariHandler(dbPath, "safari", "test-safari-profile")
-	entries, err := handler.GetHistory(time.Time{}, time.Time{})
+	entries, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err != nil {
 		t.Fatalf("failed to get history: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestSafariHandler_GetHistory_Errors(t *testing.T) {
 
 	// 1. Copy database error (non-existent path)
 	handler := NewSafariHandler("/nonexistent/safari/History.db", "safari", "profile")
-	_, err := handler.GetHistory(time.Time{}, time.Time{})
+	_, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error copying non-existent database, got nil")
 	}
@@ -283,7 +283,7 @@ func TestSafariHandler_GetHistory_Errors(t *testing.T) {
 	db.Close()
 
 	handler2 := NewSafariHandler(dbPath, "safari", "profile")
-	_, err = handler2.GetHistory(time.Time{}, time.Time{})
+	_, err = handler2.GetHistory(time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error executing query on empty schema, got nil")
 	}
@@ -334,7 +334,7 @@ func TestSafariHandler_GetHistory_ScanError(t *testing.T) {
 	}
 
 	handler := NewSafariHandler(dbPath, "safari", "profile")
-	_, err = handler.GetHistory(time.Time{}, time.Time{})
+	_, err = handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error during rows.Scan, got nil")
 	}

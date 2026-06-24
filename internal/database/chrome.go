@@ -28,7 +28,7 @@ func NewChromeHandler(dbPath string, browserName string, profile string) *Chrome
 }
 
 // GetHistory retrieves history entries from Chrome
-func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error) {
+func (h *ChromeHandler) GetHistory(startDate, endDate time.Time, validOnly bool) ([]models.HistoryEntry, error) {
 	// Copy database to temp location to avoid locking issues
 	tempDB, cleanup, err := CopyDatabaseWithWAL(h.dbPath, "web-recap-chrome")
 	if err != nil {
@@ -44,12 +44,16 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		return found
 	}
 
-	// Bug fix #1: filter subframe-only URLs that Chrome marks as hidden.
-	// Without this filter the caller receives internal redirect artifacts that
-	// never correspond to a page the user actually visited.
+	// When validOnly is set, filter subframe-only URLs that Chrome marks as hidden.
+	// By default the column is read and exposed as hidden in the entry.
 	hiddenFilter := ""
-	if hasCol("urls", "hidden") {
+	if validOnly && hasCol("urls", "hidden") {
 		hiddenFilter = " AND u.hidden = 0"
+	}
+
+	hiddenExpr := "0 as hidden"
+	if hasCol("urls", "hidden") {
+		hiddenExpr = "COALESCE(u.hidden, 0) as hidden"
 	}
 
 	// Bug fix #3: resolve the referrer URL by self-joining visits+urls on from_visit.
@@ -82,8 +86,9 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		COALESCE(v.segment_id, 0) AS segment_id,
 		COALESCE(u.typed_count, 0) AS typed_count,
 		%s,
+		%s,
 		%s
-	`, referrerURLExpr, sourceExpr)
+	`, referrerURLExpr, sourceExpr, hiddenExpr)
 
 	fromClause := fmt.Sprintf(`
 		FROM visits v
@@ -134,11 +139,12 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		var visitCount int
 		var visitDuration, transition, fromVisit, segmentID, typedCount int64
 		var referrerURL, source string
+		var hidden int
 
 		if err := rows.Scan(
 			&chromeTime, &url, &title, &visitCount,
 			&visitDuration, &transition, &fromVisit, &segmentID, &typedCount,
-			&referrerURL, &source,
+			&referrerURL, &source, &hidden,
 		); err != nil {
 			return nil, err
 		}
@@ -160,6 +166,7 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			TypedCount:    typedCount,
 			ReferrerURL:   referrerURL,
 			Source:        source,
+			Hidden:        hidden != 0,
 			// Bug fix #4: decode the transition bitmask to a normalized string so
 			// callers can compare visit types across browsers without knowing
 			// Chrome's internal encoding.

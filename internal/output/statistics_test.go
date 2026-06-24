@@ -167,7 +167,7 @@ func TestFormatStats_Comprehensive(t *testing.T) {
 			Title:            "Apple",
 			VisitCount:     1,
 			GenerationType: 0, // Clicked Link
-			LoadSuccessful: true,
+			LoadSuccessful: func() *bool { b := true; return &b }(),
 		},
 		// 13. Safari entry with typed
 		{
@@ -179,7 +179,7 @@ func TestFormatStats_Comprehensive(t *testing.T) {
 			Title:            "iCloud",
 			VisitCount:     1,
 			GenerationType: 1, // Typed
-			LoadSuccessful: false,
+			LoadSuccessful: func() *bool { b := false; return &b }(),
 			HTTPNonGET:     true,
 		},
 		// 14. Safari entry with redirect

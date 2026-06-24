@@ -114,6 +114,7 @@ func init() {
 		sub.Flags().StringP("browser", "b", "", "Comma-separated list of browsers (defaults to all)")
 		sub.Flags().StringP("database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
 		sub.Flags().StringP("limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
+		sub.Flags().BoolP("valid-only", "v", false, "Only return successfully loaded, non-hidden visits (filters out failed loads and subframe entries)")
 	}
 	// --summary controls the one-line stderr report; stats output goes to stdout
 	// and IS the report, so the flag does not apply to statsCmd.
@@ -212,6 +213,7 @@ type Config struct {
 	Mode             string
 	Limit            string
 	Flat             bool
+	ValidOnly        bool
 }
 
 func parseConfig(cmd *cobra.Command) Config {
@@ -240,6 +242,9 @@ func parseConfig(cmd *cobra.Command) Config {
 	}
 	if cmd.Flags().Lookup("summary") != nil {
 		cfg.Summary, _ = cmd.Flags().GetBool("summary")
+	}
+	if cmd.Flags().Lookup("valid-only") != nil {
+		cfg.ValidOnly, _ = cmd.Flags().GetBool("valid-only")
 	}
 	if cmd.Flags().Lookup("output") != nil {
 		cfg.Output, _ = cmd.Flags().GetString("output")
@@ -436,7 +441,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 
 	for _, b := range browsers {
 		browserNames = append(browserNames, fmt.Sprintf("%s (%s)", b.Name, b.Profile))
-		entries, err := database.Query(b, fromVal, toVal)
+		entries, err := database.Query(b, fromVal, toVal, cfg.ValidOnly)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to query %s (profile: %s): %v\n", b.Name, b.Profile, err)
 			if cfg.Browser != "" {

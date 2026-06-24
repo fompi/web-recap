@@ -119,7 +119,7 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		// Safari metrics
 		if browserLower == "safari" {
 			safariCount++
-			if entry.LoadSuccessful {
+			if entry.LoadSuccessful != nil && *entry.LoadSuccessful {
 				safariSuccessCount++
 			}
 			if entry.HTTPNonGET {

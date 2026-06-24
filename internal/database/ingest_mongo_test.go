@@ -57,7 +57,7 @@ func TestEToDocList(t *testing.T) {
 			Profile:        "Default",
 			Timestamp:      time.Date(2026, 6, 20, 12, 10, 0, 0, time.UTC),
 			URL:            "https://apple.com",
-			LoadSuccessful: true,
+			LoadSuccessful: func() *bool { b := true; return &b }(),
 		},
 	}
 

@@ -30,7 +30,7 @@ type HistoryEntry struct {
 	RedirectDestination int64 `json:"redirect_destination,omitempty"`
 	Origin              int64 `json:"origin,omitempty"`
 	GenerationType      int64 `json:"generation_type,omitempty"`
-	LoadSuccessful      bool  `json:"load_successful,omitempty"`
+	LoadSuccessful      *bool `json:"load_successful,omitempty"`
 	HTTPNonGET          bool  `json:"http_non_get,omitempty"`
 	Synthesized         bool  `json:"synthesized,omitempty"`
 
@@ -38,6 +38,7 @@ type HistoryEntry struct {
 	ReferrerURL    string `json:"referrer_url,omitempty"`
 	VisitTypeLabel string `json:"visit_type_label,omitempty"` // link|typed|bookmark|reload|redirect|download|other
 	Source         string `json:"source,omitempty"`           // local|synced
+	Hidden         bool   `json:"hidden,omitempty"`
 }
 
 

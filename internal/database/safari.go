@@ -31,7 +31,7 @@ func NewSafariHandler(dbPath string, browserName string, profile string) *Safari
 }
 
 // GetHistory retrieves history entries from Safari
-func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error) {
+func (h *SafariHandler) GetHistory(startDate, endDate time.Time, validOnly bool) ([]models.HistoryEntry, error) {
 	if !isDarwinOS {
 		return nil, ErrSafariNotAvailable
 	}
@@ -93,11 +93,11 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		synthesizedExpr = "COALESCE(hv.synthesized, 0) as synthesized"
 	}
 
-	// Bug fix #2: exclude visits where the page failed to load.
+	// When validOnly is set, exclude visits where the page failed to load.
 	// Safari records every navigation attempt, including aborted and errored loads.
-	// Callers expect only pages the user actually saw, not DNS failures or timeouts.
+	// By default the column is read and exposed as load_successful in the entry.
 	loadSuccFilter := ""
-	if hasCol("history_visits", "load_successful") {
+	if validOnly && hasCol("history_visits", "load_successful") {
 		loadSuccFilter = " AND hv.load_successful = 1"
 	}
 
@@ -194,6 +194,7 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 
 		timestamp := ConvertSafariTimestamp(safariTime)
 
+		ls := loadSuccessful != 0
 		entries = append(entries, models.HistoryEntry{
 			Timestamp:           timestamp,
 			URL:                 url,
@@ -206,7 +207,7 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 			RedirectDestination: redirectDestination,
 			Origin:              origin,
 			GenerationType:      generationType,
-			LoadSuccessful:      loadSuccessful != 0,
+			LoadSuccessful:      &ls,
 			HTTPNonGET:          httpNonGET != 0,
 			Synthesized:         synthesized != 0,
 			ReferrerURL:         referrerURL,

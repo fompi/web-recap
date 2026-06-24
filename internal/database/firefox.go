@@ -28,7 +28,7 @@ func NewFirefoxHandler(dbPath string, browserName string, profile string) *Firef
 }
 
 // GetHistory retrieves history entries from Firefox
-func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error) {
+func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time, validOnly bool) ([]models.HistoryEntry, error) {
 	// Copy database to temp location to avoid locking issues
 	tempDB, cleanup, err := CopyDatabaseWithWAL(h.dbPath, "web-recap-firefox")
 	if err != nil {
@@ -81,12 +81,16 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		typedExpr = "COALESCE(p.typed, 0) as typed"
 	}
 
-	// Bug fix #1: filter subframe-only entries that Firefox marks as hidden.
-	// moz_places.hidden=1 rows are internal redirect hops and sub-frame URLs
-	// that never represent a top-level page navigation by the user.
+	// When validOnly is set, filter subframe-only entries that Firefox marks as hidden.
+	// By default the column is read and exposed as hidden in the entry.
 	hiddenFilter := ""
-	if hasCol("moz_places", "hidden") {
+	if validOnly && hasCol("moz_places", "hidden") {
 		hiddenFilter = " AND p.hidden = 0"
+	}
+
+	hiddenExpr := "0 as hidden"
+	if hasCol("moz_places", "hidden") {
+		hiddenExpr = "COALESCE(p.hidden, 0) as hidden"
 	}
 
 	// Bug fix #3: resolve the referrer URL by self-joining moz_historyvisits on
@@ -112,11 +116,12 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		%s,
 		%s,
 		%s,
+		%s,
 		%s
 	`, titleExpr, visitCountExpr,
 		fromVisitExpr, visitTypeExpr,
 		sessionExpr, frequencyExpr, typedExpr,
-		referrerURLExpr)
+		referrerURLExpr, hiddenExpr)
 
 	fromClause := fmt.Sprintf(`
 		FROM moz_historyvisits h
@@ -166,11 +171,12 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		var visitCount int
 		var fromVisit, visitType, session, frequency, typed int64
 		var referrerURL string
+		var hidden int
 
 		if err := rows.Scan(
 			&firefoxTime, &url, &title, &visitCount,
 			&fromVisit, &visitType, &session, &frequency, &typed,
-			&referrerURL,
+			&referrerURL, &hidden,
 		); err != nil {
 			return nil, err
 		}
@@ -191,6 +197,7 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 			Frequency:  frequency,
 			Typed:      typed,
 			ReferrerURL: referrerURL,
+			Hidden:     hidden != 0,
 			// Bug fix #4: decode Firefox's integer visit_type enum to a normalized
 			// string that callers can compare directly against Chrome and Safari entries.
 			VisitTypeLabel: DecodeFirefoxVisitType(visitType),

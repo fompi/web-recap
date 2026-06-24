@@ -56,7 +56,7 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 
 	// Insert mock data.
 	// Firefox time = 1781956800 * 1000000 = 1781956800000000.
-	// hidden=0 → visible page; hidden=1 → subframe URL (should be filtered out).
+	// hidden=0 → visible page; hidden=1 → subframe URL.
 	// visit_date=0 → excluded by WHERE visit_date > 0.
 	_, err = db.Exec(`
 		INSERT INTO moz_places (id, url, title, visit_count, frecency, typed, hidden) VALUES (1, 'https://example.com/firefox1', 'Firefox Page', 3, 15, 1, 0);
@@ -77,13 +77,13 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 	startDate := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)
 
-	// Test 1: date range
-	entries, err := handler.GetHistory(startDate, endDate)
+	// Test 1: validOnly=true — hidden entry filtered, only visible entry returned
+	entries, err := handler.GetHistory(startDate, endDate, true)
 	if err != nil {
 		t.Fatalf("failed to get history: %v", err)
 	}
 	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
+		t.Fatalf("expected 1 entry with validOnly=true, got %d", len(entries))
 	}
 	if entries[0].URL != "https://example.com/firefox1" {
 		t.Errorf("expected URL 'https://example.com/firefox1', got %q", entries[0].URL)
@@ -92,31 +92,55 @@ func TestFirefoxHandler_GetHistory_AllBranches(t *testing.T) {
 	if entries[0].VisitTypeLabel != "redirect" {
 		t.Errorf("expected VisitTypeLabel 'redirect', got %q", entries[0].VisitTypeLabel)
 	}
-
-	// Test 2: only start date — hidden entry is filtered, only 1 visible entry expected
-	entries, _ = handler.GetHistory(startDate, time.Time{})
-	if len(entries) != 1 {
-		t.Errorf("expected 1 entry, got %d", len(entries))
+	if entries[0].Hidden {
+		t.Errorf("expected Hidden=false for visible entry")
 	}
 
-	// Test 3: only end date (non-zero time, does not add 86400)
+	// Test 2: validOnly=false — both hidden and visible entries returned
+	entries, err = handler.GetHistory(startDate, endDate, false)
+	if err != nil {
+		t.Fatalf("failed to get history: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries with validOnly=false, got %d", len(entries))
+	}
+	hiddenFound := false
+	for _, e := range entries {
+		if e.URL == "https://internal.example.com/frame" {
+			hiddenFound = true
+			if !e.Hidden {
+				t.Errorf("expected Hidden=true for hidden entry")
+			}
+		}
+	}
+	if !hiddenFound {
+		t.Errorf("hidden entry not found in results")
+	}
+
+	// Test 3: only start date, validOnly=false — 2 entries
+	entries, _ = handler.GetHistory(startDate, time.Time{}, false)
+	if len(entries) != 2 {
+		t.Errorf("expected 2 entries (start date only, validOnly=false), got %d", len(entries))
+	}
+
+	// Test 4: only end date (non-zero time), validOnly=false — 2 entries
 	customEndDate := time.Date(2026, 6, 20, 15, 0, 0, 0, time.UTC)
-	entries, _ = handler.GetHistory(time.Time{}, customEndDate)
-	if len(entries) != 1 {
-		t.Errorf("expected 1 entry, got %d", len(entries))
+	entries, _ = handler.GetHistory(time.Time{}, customEndDate, false)
+	if len(entries) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(entries))
 	}
 
-	// Test 3b: end date with non-zero nanoseconds at 00:00:00 (does not add 86400)
+	// Test 4b: end date with non-zero nanoseconds at 00:00:00 (does not add 86400)
 	nsEndDate := time.Date(2026, 6, 20, 0, 0, 0, 100, time.UTC)
-	entries, _ = handler.GetHistory(time.Time{}, nsEndDate)
+	entries, _ = handler.GetHistory(time.Time{}, nsEndDate, false)
 	if len(entries) != 0 {
 		t.Errorf("expected 0 entries (excluding 12:00:00 visit), got %d", len(entries))
 	}
 
-	// Test 4: empty dates — visible entry only; hidden and zero-date are excluded
-	entries, _ = handler.GetHistory(time.Time{}, time.Time{})
-	if len(entries) != 1 {
-		t.Errorf("expected 1 entry, got %d", len(entries))
+	// Test 5: empty dates, validOnly=false — both non-zero entries
+	entries, _ = handler.GetHistory(time.Time{}, time.Time{}, false)
+	if len(entries) != 2 {
+		t.Errorf("expected 2 entries (empty dates, validOnly=false), got %d", len(entries))
 	}
 }
 
@@ -163,7 +187,7 @@ func TestFirefoxHandler_GetHistory_MissingColumns(t *testing.T) {
 	}
 
 	handler := NewFirefoxHandler(dbPath, "firefox", "test-firefox-profile")
-	entries, err := handler.GetHistory(time.Time{}, time.Time{})
+	entries, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err != nil {
 		t.Fatalf("failed to get history: %v", err)
 	}
@@ -183,7 +207,7 @@ func TestFirefoxHandler_GetHistory_MissingColumns(t *testing.T) {
 func TestFirefoxHandler_GetHistory_Errors(t *testing.T) {
 	// 1. Copy database error (non-existent path)
 	handler := NewFirefoxHandler("/nonexistent/firefox/places.sqlite", "firefox", "profile")
-	_, err := handler.GetHistory(time.Time{}, time.Time{})
+	_, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error copying non-existent database, got nil")
 	}
@@ -203,7 +227,7 @@ func TestFirefoxHandler_GetHistory_Errors(t *testing.T) {
 	db.Close()
 
 	handler2 := NewFirefoxHandler(dbPath, "firefox", "profile")
-	_, err = handler2.GetHistory(time.Time{}, time.Time{})
+	_, err = handler2.GetHistory(time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error executing query on empty schema, got nil")
 	}
@@ -250,7 +274,7 @@ func TestFirefoxHandler_GetHistory_FrequencyColumn(t *testing.T) {
 	}
 
 	handler := NewFirefoxHandler(dbPath, "firefox", "profile")
-	entries, err := handler.GetHistory(time.Time{}, time.Time{})
+	entries, err := handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err != nil {
 		t.Fatalf("failed to get history: %v", err)
 	}
@@ -303,7 +327,7 @@ func TestFirefoxHandler_GetHistory_ScanError(t *testing.T) {
 	}
 
 	handler := NewFirefoxHandler(dbPath, "firefox", "profile")
-	_, err = handler.GetHistory(time.Time{}, time.Time{})
+	_, err = handler.GetHistory(time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error during rows.Scan, got nil")
 	}

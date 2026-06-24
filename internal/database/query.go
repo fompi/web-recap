@@ -10,7 +10,7 @@ import (
 
 // HistoryQuerier defines the interface for querying browser history
 type HistoryQuerier interface {
-	GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error)
+	GetHistory(startDate, endDate time.Time, validOnly bool) ([]models.HistoryEntry, error)
 }
 
 // NewQuerier creates a new history querier for the given browser
@@ -28,13 +28,13 @@ func NewQuerier(b *browser.Browser) (HistoryQuerier, error) {
 }
 
 // Query retrieves history entries from a specific browser
-func Query(b *browser.Browser, startDate, endDate time.Time) ([]models.HistoryEntry, error) {
+func Query(b *browser.Browser, startDate, endDate time.Time, validOnly bool) ([]models.HistoryEntry, error) {
 	querier, err := NewQuerier(b)
 	if err != nil {
 		return nil, err
 	}
 
-	entries, err := querier.GetHistory(startDate, endDate)
+	entries, err := querier.GetHistory(startDate, endDate, validOnly)
 	if err != nil {
 		return nil, err
 	}

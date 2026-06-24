@@ -50,14 +50,14 @@ func TestQuery_NewQuerier(t *testing.T) {
 func TestQuery_QueryError(t *testing.T) {
 	// Call Query with unsupported type to check error
 	b := &browser.Browser{Type: browser.Type("unknown"), Path: "dummy"}
-	_, err := Query(b, time.Time{}, time.Time{})
+	_, err := Query(b, time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
 
 	// Call Query with a type that fails to query (e.g. non-existent SQLite path)
 	b2 := &browser.Browser{Type: browser.Chrome, Path: "/nonexistent/db"}
-	_, err = Query(b2, time.Time{}, time.Time{})
+	_, err = Query(b2, time.Time{}, time.Time{}, false)
 	if err == nil {
 		t.Errorf("expected error querying non-existent path, got nil")
 	}
@@ -139,7 +139,7 @@ func TestQuery_Success(t *testing.T) {
 		Name: "chrome",
 	}
 
-	entries, err := Query(b, time.Time{}, time.Time{})
+	entries, err := Query(b, time.Time{}, time.Time{}, false)
 	if err != nil {
 		t.Fatalf("failed to query: %v", err)
 	}

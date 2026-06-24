@@ -62,7 +62,7 @@ func TestIngestSQL_SQLiteModes(t *testing.T) {
 			RedirectSource:  0,
 			Origin:          1,
 			GenerationType:  3,
-			LoadSuccessful:  true,
+			LoadSuccessful:  func() *bool { b := true; return &b }(),
 			HTTPNonGET:      false,
 			Synthesized:     false,
 		},
