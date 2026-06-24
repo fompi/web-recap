@@ -100,6 +100,11 @@ web-recap dump
 # Export history from last 7 days in JSON Lines format
 web-recap dump --from "7 days" --format jsonl
 
+# Export history and redact Basic Auth passwords in URLs
+web-recap dump --censor
+# or using the shorthand
+web-recap dump -x
+
 # Export a specific date range from Chrome & Firefox to a compressed CSV (format and compression are autodetected)
 web-recap dump -b chrome,firefox -f 2026-06-01 -t 2026-06-15 -o history.csv.gz
 
@@ -115,6 +120,9 @@ web-recap stats
 
 # Statistics from last 24 hours in America/New_York timezone
 web-recap stats --from "24 hours" --timezone America/New_York
+
+# Export statistics as an interactive HTML Dashboard to a file
+web-recap stats --format html -o stats.html
 ```
 
 ---
@@ -140,7 +148,7 @@ web-recap ingest --connect <DSN> [flags]
   - `merged`: Single `history` table containing only common columns.
   - `split`: Browser-specific tables containing common + raw columns.
   - `both`: Populates both the merged table and the browser-specific tables.
-- `-x`, `--flat` (Default `false`):
+- `--flat` (Default `false`):
   - If `false` (relational), uses foreign key references (`history_id`) to link child tables (e.g. `history_chrome`) to the parent `history` table.
   - If `true` (flat), denormalizes tables, repeating common columns in child tables.
 
@@ -155,7 +163,7 @@ web-recap ingest -c sqlite://history_relational.db -M both -f "30 days"
 #### 2. Flat SQLite DB
 Populates flat tables repeating columns:
 ```bash
-web-recap ingest -c sqlite://history_flat.db -M both -x -f "30 days"
+web-recap ingest -c sqlite://history_flat.db -M both --flat -f "30 days"
 ```
 
 #### 3. Ingest into Remote PostgreSQL

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/browser"
+	"github.com/rzolkos/web-recap/internal/models"
+	"github.com/rzolkos/web-recap/internal/utils"
 )
 
 const safariEpochDiff = 978307200
@@ -231,4 +233,29 @@ func CopyDatabaseWithWAL(srcPath string, prefix string) (string, func(), error) 
 	}
 
 	return tmpPath, cleanup, nil
+}
+
+// EnrichEntry parses the URL and populates all the new enriched metadata fields.
+// If censor is true, it replaces the password in the URL with "***".
+func EnrichEntry(entry *models.HistoryEntry, censor bool) {
+	parts := utils.DeconstructURL(entry.URL)
+	entry.Scheme = parts.Scheme
+	entry.Username = parts.Username
+	entry.FQDN = parts.FQDN
+	entry.DomainName = parts.DomainName
+	entry.Subdomain = parts.Subdomain
+	entry.TLD = parts.TLD
+	entry.Port = parts.Port
+	entry.Path = parts.Path
+	entry.QueryParams = parts.QueryParams
+
+	if censor && parts.Password != "" {
+		u, err := url.Parse(entry.URL)
+		if err == nil && u.User != nil {
+			u.User = url.UserPassword(u.User.Username(), "***")
+			uStr := u.String()
+			uStr = strings.ReplaceAll(uStr, "%2A%2A%2A", "***")
+			entry.URL = uStr
+		}
+	}
 }

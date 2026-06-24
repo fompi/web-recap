@@ -1,4 +1,4 @@
-.TH WEB-RECAP 1 "2026-06-24" "web-recap 0.5.1" "General Commands Manual"
+.TH WEB-RECAP 1 "2026-06-24" "web-recap 0.5.2" "General Commands Manual"
 .SH NAME
 web-recap \- Extract browser history in human-friendly or machine-friendly formats
 .SH SYNOPSIS
@@ -42,6 +42,12 @@ Specify another user username to query home directory paths for.
 .TP
 .BI \-l\fR,\fB \-\-limit " value"
 Max records to query. Supports total limits (e.g. "100") or per-browser configurations (e.g. "chrome:50,safari:20::100").
+.TP
+.BI \-v\fR,\fB \-\-valid-only
+Only query successfully loaded, non-hidden visits.
+.TP
+.BI \-x\fR,\fB \-\-censor
+Censor Basic Auth passwords in URLs with "***".
 .SH DUMP FLAGS
 .TP
 .BI \-F\fR,\fB \-\-format " value"
@@ -63,7 +69,7 @@ Ingestion mode. Options: "merged" (common columns in single table), "split" (sep
 .BI \-C\fR,\fB \-\-conflict " strategy"
 Ingestion conflict strategy: "skip" (default) or "replace".
 .TP
-.BI \-x\fR,\fB \-\-flat
+.BI \-\-flat
 Create flat tables repeating common data instead of relational schemas.
 .SH EXAMPLES
 Extract history from the last 3 days in text format:
@@ -73,6 +79,10 @@ web-recap dump -f "3 days"
 Calculate stats for Chrome history since yesterday:
 .IP
 web-recap stats -b chrome -f yesterday
+.PP
+Calculate stats and export as an interactive HTML dashboard:
+.IP
+web-recap stats -f "30 days" --format html -o stats.html
 .PP
 Ingest all history for the current day into a local SQLite database, replacing duplicates in split layout:
 .IP

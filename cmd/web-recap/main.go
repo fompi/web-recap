@@ -21,7 +21,7 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-const version = "0.5.1"
+const version = "0.5.2"
 
 var rootCmd = &cobra.Command{
 	Use:   "web-recap",
@@ -115,6 +115,7 @@ func init() {
 		sub.Flags().StringP("database", "d", "", "Custom database paths (e.g. chrome:/path/to/db,safari:/path/to/db)")
 		sub.Flags().StringP("limit", "l", "", "Limit max records (e.g. '100' or 'chrome:50,safari:20::100')")
 		sub.Flags().BoolP("valid-only", "v", false, "Only return successfully loaded, non-hidden visits (filters out failed loads and subframe entries)")
+		sub.Flags().BoolP("censor", "x", false, "Censor basic auth passwords in URLs with '***'")
 	}
 	// --summary controls the one-line stderr report; stats output goes to stdout
 	// and IS the report, so the flag does not apply to statsCmd.
@@ -126,6 +127,10 @@ func init() {
 	dumpCmd.Flags().CountP("compress", "z", "Compress output: -z (gzip), -zz (bzip2), -zzz (xz)")
 	dumpCmd.Flags().StringP("format", "F", "text", "Output format (text, csv, json, jsonl)")
 	dumpCmd.Flags().StringP("output", "o", "", "Output to file path instead of stdout")
+
+	// Stats-specific flags
+	statsCmd.Flags().StringP("format", "F", "text", "Output format (text, html)")
+	statsCmd.Flags().StringP("output", "o", "", "Output to file path instead of stdout")
 
 	// Ingest-specific flags and command registration (conditional on build tags)
 	initIngestCmd()
@@ -214,6 +219,7 @@ type Config struct {
 	Limit            string
 	Flat             bool
 	ValidOnly        bool
+	Censor           bool
 }
 
 func parseConfig(cmd *cobra.Command) Config {
@@ -245,6 +251,9 @@ func parseConfig(cmd *cobra.Command) Config {
 	}
 	if cmd.Flags().Lookup("valid-only") != nil {
 		cfg.ValidOnly, _ = cmd.Flags().GetBool("valid-only")
+	}
+	if cmd.Flags().Lookup("censor") != nil {
+		cfg.Censor, _ = cmd.Flags().GetBool("censor")
 	}
 	if cmd.Flags().Lookup("output") != nil {
 		cfg.Output, _ = cmd.Flags().GetString("output")
@@ -441,7 +450,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 
 	for _, b := range browsers {
 		browserNames = append(browserNames, fmt.Sprintf("%s (%s)", b.Name, b.Profile))
-		entries, err := database.Query(b, fromVal, toVal, cfg.ValidOnly)
+		entries, err := database.Query(b, fromVal, toVal, cfg.ValidOnly, cfg.Censor)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to query %s (profile: %s): %v\n", b.Name, b.Profile, err)
 			if cfg.Browser != "" {
@@ -473,7 +482,19 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 
 	// If stats subcommand is chosen, display stats
 	if statsOnly {
-		return output.FormatStats(os.Stdout, allEntries, fromVal, toVal, loc)
+		var out io.Writer = os.Stdout
+		if cfg.Output != "" {
+			f, err := os.Create(cfg.Output)
+			if err != nil {
+				return fmt.Errorf("failed to create stats output file: %v", err)
+			}
+			defer f.Close()
+			out = f
+		}
+		if cfg.Format == "html" {
+			return output.FormatStatsHTML(out, allEntries, fromVal, toVal, loc)
+		}
+		return output.FormatStats(out, allEntries, fromVal, toVal, loc)
 	}
 
 	// 9. Ingest directly if connect string is provided (only via ingest subcommand)

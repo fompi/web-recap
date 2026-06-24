@@ -356,3 +356,83 @@ func TestFormatStats_EdgeCases(t *testing.T) {
 		t.Errorf("expected ▏ character to be used in low-count bars: %q", output)
 	}
 }
+
+func TestFormatStatsHTML(t *testing.T) {
+	loc := time.UTC
+	fromTime := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	toTime := time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)
+
+	entries := []models.HistoryEntry{
+		{
+			Browser:    "Chrome",
+			Profile:    "Default",
+			Timestamp:  time.Date(2026, 6, 20, 10, 0, 0, 0, time.UTC),
+			Domain:     "google.com",
+			URL:        "https://google.com?q=golang",
+			Title:      "Google Search",
+			VisitCount: 1,
+			Scheme:     "https",
+			FQDN:       "google.com",
+			TLD:        "com",
+			Port:       "",
+		},
+		{
+			Browser:    "Firefox",
+			Profile:    "Default",
+			Timestamp:  time.Date(2026, 6, 20, 11, 0, 0, 0, time.UTC),
+			Domain:     "localhost",
+			URL:        "http://localhost:8080/dashboard",
+			Title:      "Local Dashboard",
+			VisitCount: 2,
+			Scheme:     "http",
+			FQDN:       "localhost",
+			TLD:        "",
+			Port:       "8080",
+		},
+		{
+			Browser:    "Safari",
+			Profile:    "Personal",
+			Timestamp:  time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			Domain:     "intranet.local",
+			URL:        "https://admin:secret123@intranet.local/",
+			Title:      "Intranet Admin",
+			VisitCount: 1,
+			Scheme:     "https",
+			FQDN:       "intranet.local",
+			TLD:        "local",
+			Port:       "",
+		},
+	}
+
+	var buf bytes.Buffer
+	err := FormatStatsHTML(&buf, entries, fromTime, toTime, loc)
+	if err != nil {
+		t.Fatalf("unexpected error formatting HTML stats: %v", err)
+	}
+
+	htmlStr := buf.String()
+	if !strings.Contains(htmlStr, "<title>Web History Recap Dashboard</title>") {
+		t.Errorf("expected HTML title not found")
+	}
+	if !strings.Contains(htmlStr, "timelineChart") {
+		t.Errorf("expected timelineChart canvas/script not found")
+	}
+	if !strings.Contains(htmlStr, "securityChart") {
+		t.Errorf("expected securityChart canvas/script not found")
+	}
+	// Check for the security warning since basic auth plaintext exists in mock entries
+	if !strings.Contains(htmlStr, "Security Alert!") {
+		t.Errorf("expected security alert banner because plaintext basic auth was present")
+	}
+}
+
+func TestFormatStatsHTML_Empty(t *testing.T) {
+	var buf bytes.Buffer
+	err := FormatStatsHTML(&buf, nil, time.Time{}, time.Time{}, time.UTC)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "No entries found") {
+		t.Errorf("expected 'No entries found' message, got: %q", buf.String())
+	}
+}

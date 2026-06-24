@@ -28,7 +28,7 @@ func NewQuerier(b *browser.Browser) (HistoryQuerier, error) {
 }
 
 // Query retrieves history entries from a specific browser
-func Query(b *browser.Browser, startDate, endDate time.Time, validOnly bool) ([]models.HistoryEntry, error) {
+func Query(b *browser.Browser, startDate, endDate time.Time, validOnly bool, censor bool) ([]models.HistoryEntry, error) {
 	querier, err := NewQuerier(b)
 	if err != nil {
 		return nil, err
@@ -37,6 +37,10 @@ func Query(b *browser.Browser, startDate, endDate time.Time, validOnly bool) ([]
 	entries, err := querier.GetHistory(startDate, endDate, validOnly)
 	if err != nil {
 		return nil, err
+	}
+
+	for i := range entries {
+		EnrichEntry(&entries[i], censor)
 	}
 
 	return entries, nil

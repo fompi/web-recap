@@ -1,6 +1,7 @@
 package output
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
+	"github.com/rzolkos/web-recap/internal/utils"
 )
 
 // titleCase uppercases the first rune of s; browser names are ASCII so this is safe.
@@ -84,6 +86,28 @@ func referrerDomain(rawURL string) string {
 	return host
 }
 
+// extractSearchQuery extracts search queries from popular search engines.
+func extractSearchQuery(urlStr string) string {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(u.Hostname())
+	if host == "" {
+		return ""
+	}
+	qParams := u.Query()
+	var query string
+	if strings.Contains(host, "google.") || strings.Contains(host, "duckduckgo.") || strings.Contains(host, "bing.") {
+		query = qParams.Get("q")
+	} else if strings.Contains(host, "youtube.com") || strings.Contains(host, "youtu.be") {
+		query = qParams.Get("search_query")
+	} else if strings.Contains(host, "search.yahoo.") {
+		query = qParams.Get("p")
+	}
+	return strings.TrimSpace(query)
+}
+
 // FormatStats prints a rich statistics analysis of the history to the writer
 func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime time.Time, loc *time.Location) error {
 	totalVisits := len(entries)
@@ -128,6 +152,17 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	referrerDomainCounts := make(map[string]int)
 	var referredCount int
 
+	// New advanced statistical fields
+	secureCount := 0
+	insecureCount := 0
+	localNetworkCount := 0
+	externalNetworkCount := 0
+	tldTypeCounts := make(map[string]int)
+	continentCounts := make(map[string]int)
+	portCounts := make(map[string]int)
+	searchQueryCounts := make(map[string]int)
+	basicAuthPlaintextCount := 0
+
 	for _, entry := range entries {
 		domainCounts[entry.Domain]++
 		urlCounts[entry.URL]++
@@ -154,6 +189,51 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 			referredCount++
 			if rd := referrerDomain(entry.ReferrerURL); rd != "" {
 				referrerDomainCounts[rd]++
+			}
+		}
+
+		// Security (HTTPS vs HTTP/Other)
+		if strings.ToLower(entry.Scheme) == "https" {
+			secureCount++
+		} else if strings.ToLower(entry.Scheme) == "http" || strings.ToLower(entry.Scheme) == "ftp" {
+			insecureCount++
+		} else if entry.Scheme != "" {
+			insecureCount++
+		}
+
+		// Network Scope (Local vs External)
+		if utils.IsLocal(entry.FQDN) {
+			localNetworkCount++
+		} else {
+			externalNetworkCount++
+		}
+
+		// TLD Type & Continent breakdown
+		if entry.TLD != "" {
+			tldType := utils.GetTLDType(entry.TLD)
+			tldTypeCounts[tldType]++
+
+			if !utils.IsLocal(entry.FQDN) {
+				continent := utils.GetContinent(entry.TLD)
+				continentCounts[continent]++
+			}
+		}
+
+		// Ports
+		if entry.Port != "" {
+			portCounts[entry.Port]++
+		}
+
+		// Searches
+		if q := extractSearchQuery(entry.URL); q != "" {
+			searchQueryCounts[q]++
+		}
+
+		// Plaintext credentials count
+		u, err := url.Parse(entry.URL)
+		if err == nil && u.User != nil {
+			if pass, ok := u.User.Password(); ok && pass != "***" && pass != "" {
+				basicAuthPlaintextCount++
 			}
 		}
 
@@ -488,6 +568,121 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
 	}
 
+	// Security Protocol Ratio
+	if secureCount+insecureCount > 0 {
+		fmt.Fprintln(w, "Security Analysis (Protocol Ratio):")
+		tot := secureCount + insecureCount
+		fmt.Fprintf(w, "  - Secure (HTTPS):        %d (%.1f%%)\n", secureCount, float64(secureCount)/float64(tot)*100)
+		fmt.Fprintf(w, "  - Insecure (HTTP/Other): %d (%.1f%%)\n", insecureCount, float64(insecureCount)/float64(tot)*100)
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Network Scope Analysis
+	fmt.Fprintln(w, "Network Scope Analysis:")
+	fmt.Fprintf(w, "  - Local / Intranet:      %d (%.1f%%)\n", localNetworkCount, float64(localNetworkCount)/float64(totalVisits)*100)
+	fmt.Fprintf(w, "  - External Internet:     %d (%.1f%%)\n", externalNetworkCount, float64(externalNetworkCount)/float64(totalVisits)*100)
+	fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+
+	// TLD Type Classification
+	if len(tldTypeCounts) > 0 {
+		fmt.Fprintln(w, "TLD Type Distribution:")
+		var sortedTLDTypes []string
+		var totalTLDs int
+		for tldType, count := range tldTypeCounts {
+			sortedTLDTypes = append(sortedTLDTypes, tldType)
+			totalTLDs += count
+		}
+		sort.Slice(sortedTLDTypes, func(i, j int) bool {
+			return tldTypeCounts[sortedTLDTypes[i]] > tldTypeCounts[sortedTLDTypes[j]]
+		})
+		for _, tldType := range sortedTLDTypes {
+			count := tldTypeCounts[tldType]
+			fmt.Fprintf(w, "  - %-20s %5d (%.1f%%)\n", tldType, count, float64(count)/float64(totalTLDs)*100)
+		}
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Continent Distribution (ccTLDs only)
+	if len(continentCounts) > 0 {
+		fmt.Fprintln(w, "Geographical ccTLD Continent Distribution:")
+		var sortedContinents []string
+		var totalContinents int
+		for cont, count := range continentCounts {
+			sortedContinents = append(sortedContinents, cont)
+			totalContinents += count
+		}
+		sort.Slice(sortedContinents, func(i, j int) bool {
+			return continentCounts[sortedContinents[i]] > continentCounts[sortedContinents[j]]
+		})
+		for _, cont := range sortedContinents {
+			count := continentCounts[cont]
+			fmt.Fprintf(w, "  - %-20s %5d (%.1f%%)\n", cont, count, float64(count)/float64(totalContinents)*100)
+		}
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Port Breakdown
+	if len(portCounts) > 0 {
+		fmt.Fprintln(w, "Explicit Port Usage (Top Ports):")
+		type PortStat struct {
+			Port  string
+			Count int
+		}
+		var sortedPorts []PortStat
+		for p, c := range portCounts {
+			sortedPorts = append(sortedPorts, PortStat{Port: p, Count: c})
+		}
+		sort.Slice(sortedPorts, func(i, j int) bool {
+			return sortedPorts[i].Count > sortedPorts[j].Count
+		})
+		limit := 5
+		if len(sortedPorts) < limit {
+			limit = len(sortedPorts)
+		}
+		for i := 0; i < limit; i++ {
+			ps := sortedPorts[i]
+			fmt.Fprintf(w, "  - Port :%-10s      %5d\n", ps.Port, ps.Count)
+		}
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Top Search Queries
+	if len(searchQueryCounts) > 0 {
+		fmt.Fprintln(w, "Top Search Queries:")
+		type QueryStat struct {
+			Query string
+			Count int
+		}
+		var sortedQueries []QueryStat
+		for q, c := range searchQueryCounts {
+			sortedQueries = append(sortedQueries, QueryStat{Query: q, Count: c})
+		}
+		sort.Slice(sortedQueries, func(i, j int) bool {
+			return sortedQueries[i].Count > sortedQueries[j].Count
+		})
+		limit := 10
+		if len(sortedQueries) < limit {
+			limit = len(sortedQueries)
+		}
+		for i := 0; i < limit; i++ {
+			qs := sortedQueries[i]
+			displayQuery := qs.Query
+			if len(displayQuery) > 50 {
+				displayQuery = displayQuery[:47] + "..."
+			}
+			fmt.Fprintf(w, "  %2d. %-50s %d\n", i+1, displayQuery, qs.Count)
+		}
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
+	// Basic Auth Warning
+	if basicAuthPlaintextCount > 0 {
+		fmt.Fprintln(w, "!!! SECURITY ALERT !!!")
+		fmt.Fprintf(w, "  Detected %d history entries with cleartext Basic Auth credentials (passwords).\n", basicAuthPlaintextCount)
+		fmt.Fprintln(w, "  Consider using the --censor / -x flag to redact passwords during dump/ingest.")
+		fmt.Fprintln(w, "--------------------------------------------------------------------------------")
+	}
+
 	// Top 10 domains
 	fmt.Fprintln(w, "Top 10 Domains:")
 	limitDomains := 10
@@ -610,4 +805,583 @@ func FormatStats(w io.Writer, entries []models.HistoryEntry, fromTime, toTime ti
 	fmt.Fprintln(w, "================================================================================")
 
 	return nil
+}
+
+// FormatStatsHTML writes history statistics as a premium, self-contained HTML Dashboard
+func FormatStatsHTML(w io.Writer, entries []models.HistoryEntry, fromTime, toTime time.Time, loc *time.Location) error {
+	totalVisits := len(entries)
+	if totalVisits == 0 {
+		_, err := fmt.Fprintln(w, "<html><body>No entries found</body></html>")
+		return err
+	}
+
+	// 1. Basic Stats Calculation
+	domainCounts := make(map[string]int)
+	browserCounts := make(map[string]int)
+	hourlyCounts := make([]int, 24)
+	dayCounts := make([]int, 7)
+	dailyVisits := make(map[string]int)
+
+	secureCount := 0
+	insecureCount := 0
+	localNetworkCount := 0
+	externalNetworkCount := 0
+	tldTypeCounts := make(map[string]int)
+	continentCounts := make(map[string]int)
+	portCounts := make(map[string]int)
+	searchQueryCounts := make(map[string]int)
+	basicAuthPlaintextCount := 0
+	navigationCounts := make(map[string]int)
+
+	for _, entry := range entries {
+		domainCounts[entry.Domain]++
+		browserKey := fmt.Sprintf("%s (%s)", titleCase(entry.Browser), entry.Profile)
+		browserCounts[browserKey]++
+
+		entryTimeLocal := entry.Timestamp.In(loc)
+		hourlyCounts[entryTimeLocal.Hour()]++
+		dayCounts[entryTimeLocal.Weekday()]++
+		dailyVisits[entryTimeLocal.Format("2006-01-02")]++
+
+		if strings.ToLower(entry.Scheme) == "https" {
+			secureCount++
+		} else if entry.Scheme != "" {
+			insecureCount++
+		}
+
+		if utils.IsLocal(entry.FQDN) {
+			localNetworkCount++
+		} else {
+			externalNetworkCount++
+		}
+
+		if entry.TLD != "" {
+			tldType := utils.GetTLDType(entry.TLD)
+			tldTypeCounts[tldType]++
+			if !utils.IsLocal(entry.FQDN) {
+				continent := utils.GetContinent(entry.TLD)
+				continentCounts[continent]++
+			}
+		}
+
+		if entry.Port != "" {
+			portCounts[entry.Port]++
+		}
+
+		if q := extractSearchQuery(entry.URL); q != "" {
+			searchQueryCounts[q]++
+		}
+
+		u, err := url.Parse(entry.URL)
+		if err == nil && u.User != nil {
+			if pass, ok := u.User.Password(); ok && pass != "***" && pass != "" {
+				basicAuthPlaintextCount++
+			}
+		}
+
+		navLabel := entry.VisitTypeLabel
+		if navLabel == "" {
+			navLabel = "other"
+		}
+		navigationCounts[navLabel]++
+	}
+
+	// Sort and format datasets for JS injection
+	// Top Domains
+	type DomainStat struct {
+		Domain string `json:"domain"`
+		Count  int    `json:"count"`
+	}
+	var sortedDomains []DomainStat
+	for d, c := range domainCounts {
+		sortedDomains = append(sortedDomains, DomainStat{Domain: d, Count: c})
+	}
+	sort.Slice(sortedDomains, func(i, j int) bool {
+		return sortedDomains[i].Count > sortedDomains[j].Count
+	})
+	topDomainsLimit := 10
+	if len(sortedDomains) < topDomainsLimit {
+		topDomainsLimit = len(sortedDomains)
+	}
+	top10Domains := sortedDomains[:topDomainsLimit]
+
+	// Top Queries
+	type QueryStat struct {
+		Query string `json:"query"`
+		Count int    `json:"count"`
+	}
+	var sortedQueries []QueryStat
+	for q, c := range searchQueryCounts {
+		sortedQueries = append(sortedQueries, QueryStat{Query: q, Count: c})
+	}
+	sort.Slice(sortedQueries, func(i, j int) bool {
+		return sortedQueries[i].Count > sortedQueries[j].Count
+	})
+	topQueriesLimit := 10
+	if len(sortedQueries) < topQueriesLimit {
+		topQueriesLimit = len(sortedQueries)
+	}
+	top10Queries := sortedQueries[:topQueriesLimit]
+
+	// Daily Visits Timeline (Sort keys chronologically)
+	var dates []string
+	var dateVisits []int
+	for d := range dailyVisits {
+		dates = append(dates, d)
+	}
+	sort.Strings(dates)
+	for _, d := range dates {
+		dateVisits = append(dateVisits, dailyVisits[d])
+	}
+
+	// JSON encode all maps/slices to inject cleanly in JS
+	datesJSON, _ := json.Marshal(dates)
+	dateVisitsJSON, _ := json.Marshal(dateVisits)
+	hourlyJSON, _ := json.Marshal(hourlyCounts)
+
+
+	tldTypeKeys := []string{}
+	tldTypeVals := []int{}
+	for k, v := range tldTypeCounts {
+		tldTypeKeys = append(tldTypeKeys, k)
+		tldTypeVals = append(tldTypeVals, v)
+	}
+	tldTypeKeysJSON, _ := json.Marshal(tldTypeKeys)
+	tldTypeValsJSON, _ := json.Marshal(tldTypeVals)
+
+	continentKeys := []string{}
+	continentVals := []int{}
+	for k, v := range continentCounts {
+		continentKeys = append(continentKeys, k)
+		continentVals = append(continentVals, v)
+	}
+	continentKeysJSON, _ := json.Marshal(continentKeys)
+	continentValsJSON, _ := json.Marshal(continentVals)
+
+	browserKeys := []string{}
+	browserVals := []int{}
+	for k, v := range browserCounts {
+		browserKeys = append(browserKeys, k)
+		browserVals = append(browserVals, v)
+	}
+	browserKeysJSON, _ := json.Marshal(browserKeys)
+	browserValsJSON, _ := json.Marshal(browserVals)
+
+	navKeys := []string{}
+	navVals := []int{}
+	for k, v := range navigationCounts {
+		navKeys = append(navKeys, k)
+		navVals = append(navVals, v)
+	}
+	navKeysJSON, _ := json.Marshal(navKeys)
+	navValsJSON, _ := json.Marshal(navVals)
+
+	fromStr := "Start of log"
+	if !fromTime.IsZero() && fromTime.Unix() > 0 {
+		fromStr = fromTime.In(loc).Format("2006-01-02 15:04:05")
+	}
+	toStr := "Now"
+	if !toTime.IsZero() {
+		toStr = toTime.In(loc).Format("2006-01-02 15:04:05")
+	}
+
+	htmlTemplate := `<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web History Recap Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+        }
+    </style>
+</head>
+<body class="p-6 font-sans">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center p-6 glass-card shadow-2xl">
+            <div>
+                <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Web Recap Dashboard</h1>
+                <p class="text-gray-400 text-sm mt-1">Enterprise-grade statistics and browser history analytics</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-right md:text-right">
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-indigo-900/50 text-indigo-300 border border-indigo-500/30">Local Execution</span>
+                <p class="text-xs text-gray-500 mt-2">Range: <span class="text-gray-300 font-mono">%[1]s</span> to <span class="text-gray-300 font-mono">%[2]s</span></p>
+            </div>
+        </header>
+
+        <!-- Security Warning Alert -->
+        %[3]s
+
+        <!-- Summary KPI Grid -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="p-6 glass-card shadow-lg flex flex-col justify-between">
+                <span class="text-gray-400 text-sm font-semibold uppercase tracking-wider">Total Visits</span>
+                <span class="text-4xl font-extrabold text-blue-400 mt-2">%[4]d</span>
+                <span class="text-xs text-gray-500 mt-2">Individual visit events</span>
+            </div>
+            <div class="p-6 glass-card shadow-lg flex flex-col justify-between">
+                <span class="text-gray-400 text-sm font-semibold uppercase tracking-wider">Unique Domains</span>
+                <span class="text-4xl font-extrabold text-indigo-400 mt-2">%[5]d</span>
+                <span class="text-xs text-gray-500 mt-2">Distinct root domains visited</span>
+            </div>
+            <div class="p-6 glass-card shadow-lg flex flex-col justify-between">
+                <span class="text-gray-400 text-sm font-semibold uppercase tracking-wider">HTTPS Ratio</span>
+                <span class="text-4xl font-extrabold text-green-400 mt-2">%[6].1f%%</span>
+                <span class="text-xs text-gray-500 mt-2">%[7]d secure / %[8]d insecure</span>
+            </div>
+            <div class="p-6 glass-card shadow-lg flex flex-col justify-between">
+                <span class="text-gray-400 text-sm font-semibold uppercase tracking-wider">Network Scope</span>
+                <span class="text-4xl font-extrabold text-purple-400 mt-2">%[9].1f%% Ext</span>
+                <span class="text-xs text-gray-500 mt-2">%[10]d local / %[11]d external</span>
+            </div>
+        </section>
+
+        <!-- Main Charts Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Timeline Chart -->
+            <div class="p-6 glass-card lg:col-span-2">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Visits Timeline</h3>
+                <div class="h-80">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            <!-- Protocol Security & Network Scope Donut charts -->
+            <div class="p-6 glass-card flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-200 mb-4">Security & Scope Summary</h3>
+                </div>
+                <div class="h-64 flex justify-center items-center relative">
+                    <canvas id="securityChart"></canvas>
+                </div>
+                <div class="text-xs text-center text-gray-400 mt-2">
+                    Encryption ratio based on parsed HTTP scheme
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- TLD Type pie -->
+            <div class="p-6 glass-card">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">TLD Type Classification</h3>
+                <div class="h-60 flex justify-center items-center">
+                    <canvas id="tldChart"></canvas>
+                </div>
+            </div>
+            <!-- Geographic ccTLDs pie -->
+            <div class="p-6 glass-card">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Geographic Continent Distribution</h3>
+                <div class="h-60 flex justify-center items-center">
+                    <canvas id="continentChart"></canvas>
+                </div>
+            </div>
+            <!-- Navigation modes -->
+            <div class="p-6 glass-card">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Navigation Methods</h3>
+                <div class="h-60 flex justify-center items-center">
+                    <canvas id="navChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hourly & Browser breakdown -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="p-6 glass-card lg:col-span-2">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Hourly Activity Histogram</h3>
+                <div class="h-64">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+            <div class="p-6 glass-card">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Browsers & Profiles</h3>
+                <div class="h-64">
+                    <canvas id="browserChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tables section -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Top Domains table -->
+            <div class="p-6 glass-card">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Top 10 Domains</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-800">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-400 uppercase">Domain</th>
+                                <th class="px-4 py-2 text-right text-xs font-semibold text-gray-400 uppercase">Visits</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800/50">
+                            %[12]s
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top Search Queries table -->
+            <div class="p-6 glass-card">
+                <h3 class="text-lg font-bold text-gray-200 mb-4">Top Search Queries</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-800">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-400 uppercase">Query</th>
+                                <th class="px-4 py-2 text-right text-xs font-semibold text-gray-400 uppercase">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800/50">
+                            %[13]s
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Chart Scripts Injection -->
+    <script>
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#9ca3af', font: { family: 'Outfit' } }
+                }
+            }
+        };
+
+        // Timeline
+        new Chart(document.getElementById('timelineChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: %[14]s,
+                datasets: [{
+                    label: 'Visits',
+                    data: %[15]s,
+                    borderColor: '#60a5fa',
+                    backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                    y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.05)' } }
+                }
+            }
+        });
+
+        // Hourly
+        new Chart(document.getElementById('hourlyChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23'],
+                datasets: [{
+                    label: 'Visits',
+                    data: %[16]s,
+                    backgroundColor: '#818cf8',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                    y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.05)' } }
+                }
+            }
+        });
+
+        // Security Donut
+        new Chart(document.getElementById('securityChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Secure (HTTPS)', 'Insecure (HTTP)'],
+                datasets: [{
+                    data: [%[7]d, %[8]d],
+                    backgroundColor: ['#10b981', '#ef4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: chartOptions
+        });
+
+        // TLDs
+        new Chart(document.getElementById('tldChart').getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: %[17]s,
+                datasets: [{
+                    data: %[18]s,
+                    backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#3b82f6', '#14b8a6'],
+                    borderWidth: 0
+                }]
+            },
+            options: chartOptions
+        });
+
+        // Continent
+        new Chart(document.getElementById('continentChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: %[19]s,
+                datasets: [{
+                    data: %[20]s,
+                    backgroundColor: ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4'],
+                    borderWidth: 0
+                }]
+            },
+            options: chartOptions
+        });
+
+        // Navigation Mode
+        new Chart(document.getElementById('navChart').getContext('2d'), {
+            type: 'polarArea',
+            data: {
+                labels: %[21]s,
+                datasets: [{
+                    data: %[22]s,
+                    backgroundColor: ['rgba(99, 102, 241, 0.6)', 'rgba(168, 85, 247, 0.6)', 'rgba(236, 72, 153, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(20, 184, 166, 0.6)'],
+                    borderWidth: 0
+                }]
+            },
+            options: chartOptions
+        });
+
+        // Browsers
+        new Chart(document.getElementById('browserChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: %[23]s,
+                datasets: [{
+                    label: 'Visits',
+                    data: %[24]s,
+                    backgroundColor: '#a855f7',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                ...chartOptions,
+                indexAxis: 'y'
+            }
+        });
+    </script>
+</body>
+</html>`
+
+	// Build rows for domains
+	domainRows := ""
+	for _, d := range top10Domains {
+		domainRows += fmt.Sprintf(`<tr>
+            <td class="px-4 py-2 font-medium text-gray-300">%[1]s</td>
+            <td class="px-4 py-2 text-right font-mono text-blue-400">%[2]d</td>
+        </tr>`, d.Domain, d.Count)
+	}
+	if len(top10Domains) == 0 {
+		domainRows = `<tr><td colspan="2" class="px-4 py-2 text-gray-500 text-center">No domains found</td></tr>`
+	}
+
+	// Build rows for queries
+	queryRows := ""
+	for _, q := range top10Queries {
+		displayQ := q.Query
+		if len(displayQ) > 50 {
+			displayQ = displayQ[:47] + "..."
+		}
+		queryRows += fmt.Sprintf(`<tr>
+            <td class="px-4 py-2 font-medium text-gray-300">%[1]s</td>
+            <td class="px-4 py-2 text-right font-mono text-indigo-400">%[2]d</td>
+        </tr>`, htmlEscape(displayQ), q.Count)
+	}
+	if len(top10Queries) == 0 {
+		queryRows = `<tr><td colspan="2" class="px-4 py-2 text-gray-500 text-center">No search queries found</td></tr>`
+	}
+
+	// Security Warning banner if any plaintext password exists
+	alertBanner := ""
+	if basicAuthPlaintextCount > 0 {
+		alertBanner = fmt.Sprintf(`
+        <div class="flex items-center p-4 mb-4 rounded-lg bg-red-900/30 text-red-400 border border-red-500/20" role="alert">
+            <svg class="flex-shrink-0 w-5 h-5 mr-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM10 15a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-4a1 1 0 0 1-2 0V6a1 1 0 0 1 2 0v5Z"/>
+            </svg>
+            <div>
+                <span class="font-bold">Security Alert!</span> Plaintext Basic Auth credentials (passwords) were detected in <span class="font-bold font-mono">%d</span> history entries. Consider using the <code class="font-mono bg-red-950 px-1 py-0.5 rounded">--censor</code> / <code class="font-mono bg-red-950 px-1 py-0.5 rounded">-x</code> flag to redact credentials.
+            </div>
+        </div>`, basicAuthPlaintextCount)
+	}
+
+	httpsPct := 0.0
+	if secureCount+insecureCount > 0 {
+		httpsPct = float64(secureCount) / float64(secureCount+insecureCount) * 100
+	}
+
+	extPct := 0.0
+	if totalVisits > 0 {
+		extPct = float64(externalNetworkCount) / float64(totalVisits) * 100
+	}
+
+	// Execute template
+	_, err := fmt.Fprintf(w, htmlTemplate,
+		fromStr,                  // 1
+		toStr,                    // 2
+		alertBanner,              // 3
+		totalVisits,              // 4
+		len(domainCounts),        // 5
+		httpsPct,                 // 6
+		secureCount,              // 7
+		insecureCount,            // 8
+		extPct,                   // 9
+		localNetworkCount,        // 10
+		externalNetworkCount,     // 11
+		domainRows,               // 12
+		queryRows,                // 13
+		datesJSON,                // 14
+		dateVisitsJSON,           // 15
+		hourlyJSON,               // 16
+		tldTypeKeysJSON,          // 17
+		tldTypeValsJSON,          // 18
+		continentKeysJSON,        // 19
+		continentValsJSON,        // 20
+		navKeysJSON,              // 21
+		navValsJSON,              // 22
+		browserKeysJSON,          // 23
+		browserValsJSON,          // 24
+	)
+	return err
+}
+
+func htmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	return s
 }

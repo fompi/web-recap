@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.5.1
+Version:        0.5.2
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,20 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.5.2-1
+- Enriched `HistoryEntry` with 9 parsed URL metadata sub-fields: `scheme`, `username`, `fqdn`, `domain_name`, `subdomain`, `tld`, `port`, `path`, and `query_params` propagated to SQLite, PostgreSQL, MySQL, MongoDB, and CSV/JSON/JSONL outputs.
+- Integration of `golang.org/x/net/publicsuffix` for offline, privacy-preserving base domain and TLD extraction.
+- New statistics insights: Security/HTTPS ratio, Network Scope (local/intranet vs. external), TLD types (ccTLD, gTLD, modern/new gTLD), ccTLD geographic continent distribution, explicit port usage, and search query frequency extraction.
+- Premium interactive HTML Dashboard for statistics (`--format html`) featuring a responsive design, Outfit typography, and interactive charts via Chart.js.
+- Security flag `--censor` / `-x` to redact plaintext Basic Auth passwords in URLs with `***`.
+- Support for `--format` / `-F` and `--output` / `-o` on the `stats` subcommand to write stats/dashboard reports directly to files.
+- `stats` subcommand now surfaces three previously unused normalized fields and adds derived insights:
+- **Source breakdown**: new section showing local vs. synced visit split; only displayed when synced data is present (#35 follow-up).
+- **Referrer insights**: new section reporting direct vs. referred visits and the top 5 entry-point domains, derived from `HistoryEntry.ReferrerURL` (#33 follow-up).
+- **Domain loyalty**: two summary lines appended below the top-10 domains table showing the ratio of one-time domains to return domains.
+- **Time-of-day segments**: Night / Morning / Afternoon / Evening breakdowns appended below the hourly histogram.
+- Navigation type decoding now uses `HistoryEntry.VisitTypeLabel` as the primary source (cross-browser normalized in #34) with the old per-browser bitmask/enum decoding kept as a fallback for legacy entries.
+
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.5.1-1
 - Added `--valid-only` / `-v` flag to `dump`, `stats`, and `ingest` subcommands. When set, only successfully loaded and non-hidden visits are returned — equivalent to the filtering behaviour introduced in 0.5.0. Without the flag (default), all visits are returned and quality issues are exposed as metadata fields instead of silently dropped.
 - `HistoryEntry` now carries two data-quality metadata fields emitted in JSON/NDJSON output when relevant:

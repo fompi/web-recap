@@ -1,6 +1,6 @@
 # Maintainer: Rob Zolkos <robzolkos@gmail.com>
 pkgname=web-recap
-pkgver=0.5.1
+pkgver=0.5.2
 pkgrel=1
 pkgdesc="Extract browser history in human-friendly or machine-friendly formats"
 arch=('x86_64' 'aarch64')

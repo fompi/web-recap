@@ -30,10 +30,10 @@ func TestFormatCSV(t *testing.T) {
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "browser,profile,timestamp,domain,title,url,visit_count") {
+	if !strings.Contains(output, "browser,profile,timestamp,domain,scheme,username,fqdn,domain_name,subdomain,tld,port,path,query_params,title,url,visit_count") {
 		t.Errorf("missing header in CSV output: %q", output)
 	}
-	if !strings.Contains(output, "Chrome,Default,2026-06-20T12:00:00Z,google.com,Google,https://google.com,3") {
+	if !strings.Contains(output, "Chrome,Default,2026-06-20T12:00:00Z,google.com,,,,,,,,,,Google,https://google.com,3") {
 		t.Errorf("missing data row in CSV output: %q", output)
 	}
 }

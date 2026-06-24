@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-06-24
+
+### Added
+- Enriched `HistoryEntry` with 9 parsed URL metadata sub-fields: `scheme`, `username`, `fqdn`, `domain_name`, `subdomain`, `tld`, `port`, `path`, and `query_params` propagated to SQLite, PostgreSQL, MySQL, MongoDB, and CSV/JSON/JSONL outputs.
+- Integration of `golang.org/x/net/publicsuffix` for offline, privacy-preserving base domain and TLD extraction.
+- New statistics insights: Security/HTTPS ratio, Network Scope (local/intranet vs. external), TLD types (ccTLD, gTLD, modern/new gTLD), ccTLD geographic continent distribution, explicit port usage, and search query frequency extraction.
+- Premium interactive HTML Dashboard for statistics (`--format html`) featuring a responsive design, Outfit typography, and interactive charts via Chart.js.
+- Security flag `--censor` / `-x` to redact plaintext Basic Auth passwords in URLs with `***`.
+- Support for `--format` / `-F` and `--output` / `-o` on the `stats` subcommand to write stats/dashboard reports directly to files.
+
 ### Changed
 - `stats` subcommand now surfaces three previously unused normalized fields and adds derived insights:
   - **Source breakdown**: new section showing local vs. synced visit split; only displayed when synced data is present (#35 follow-up).

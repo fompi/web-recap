@@ -54,7 +54,7 @@ func initIngestCmd() {
 	ingestCmd.Flags().StringP("connect", "c", "", "Database connection string (e.g. mysql://user:pass@host/db) (Required)")
 	ingestCmd.Flags().StringP("conflict", "C", "skip", "Ingestion conflict strategy: skip, replace")
 	ingestCmd.Flags().StringP("mode", "M", "merged", "Ingestion mode: merged (only common columns in 'history' table), split (browser-specific tables), both (both merged and split tables)")
-	ingestCmd.Flags().BoolP("flat", "x", false, "Create flat tables repeating common data instead of relational schemas")
+	ingestCmd.Flags().Bool("flat", false, "Create flat tables repeating common data instead of relational schemas")
 	_ = ingestCmd.MarkFlagRequired("connect")
 	ingestCmd.SetFlagErrorFunc(handleFlagError)
 	rootCmd.AddCommand(ingestCmd)

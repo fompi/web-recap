@@ -43,7 +43,7 @@ func TestCLI_IngestModes(t *testing.T) {
 				"-f", "10 days ago",
 			}
 			if tc.flat {
-				args = append(args, "-x")
+				args = append(args, "--flat")
 			}
 			rootCmd.SetArgs(args)
 

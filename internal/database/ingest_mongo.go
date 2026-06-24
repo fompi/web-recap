@@ -126,24 +126,42 @@ func eToDocList(entries []models.HistoryEntry, mode string, flat bool) []mongoDo
 	for _, entry := range entries {
 		// Common document map
 		commonDoc := bson.M{
-			"browser":     entry.Browser,
-			"profile":     entry.Profile,
-			"timestamp":   entry.Timestamp,
-			"url":         entry.URL,
-			"title":       entry.Title,
-			"domain":      entry.Domain,
-			"visit_count": entry.VisitCount,
+			"browser":      entry.Browser,
+			"profile":      entry.Profile,
+			"timestamp":    entry.Timestamp,
+			"url":          entry.URL,
+			"title":        entry.Title,
+			"domain":       entry.Domain,
+			"visit_count":  entry.VisitCount,
+			"scheme":       entry.Scheme,
+			"username":     entry.Username,
+			"fqdn":         entry.FQDN,
+			"domain_name":  entry.DomainName,
+			"subdomain":    entry.Subdomain,
+			"tld":          entry.TLD,
+			"port":         entry.Port,
+			"path":         entry.Path,
+			"query_params": entry.QueryParams,
 		}
 
 		// Extended document map (for flat or split collections)
 		extDoc := bson.M{
-			"browser":     entry.Browser,
-			"profile":     entry.Profile,
-			"timestamp":   entry.Timestamp,
-			"url":         entry.URL,
-			"title":       entry.Title,
-			"domain":      entry.Domain,
-			"visit_count": entry.VisitCount,
+			"browser":      entry.Browser,
+			"profile":      entry.Profile,
+			"timestamp":    entry.Timestamp,
+			"url":          entry.URL,
+			"title":        entry.Title,
+			"domain":       entry.Domain,
+			"visit_count":  entry.VisitCount,
+			"scheme":       entry.Scheme,
+			"username":     entry.Username,
+			"fqdn":         entry.FQDN,
+			"domain_name":  entry.DomainName,
+			"subdomain":    entry.Subdomain,
+			"tld":          entry.TLD,
+			"port":         entry.Port,
+			"path":         entry.Path,
+			"query_params": entry.QueryParams,
 			// Chrome
 			"visit_duration": entry.VisitDuration,
 			"transition":     entry.Transition,
@@ -158,10 +176,10 @@ func eToDocList(entries []models.HistoryEntry, mode string, flat bool) []mongoDo
 			// Safari
 			"redirect_source":      entry.RedirectSource,
 			"redirect_destination": entry.RedirectDestination,
-			"origin":              entry.Origin,
+			"origin":               entry.Origin,
 			"generation_type":      entry.GenerationType,
 			"load_successful":      entry.LoadSuccessful,
-			"http_non_get":          entry.HTTPNonGET,
+			"http_non_get":         entry.HTTPNonGET,
 			"synthesized":          entry.Synthesized,
 		}
 
@@ -182,14 +200,23 @@ func eToDocList(entries []models.HistoryEntry, mode string, flat bool) []mongoDo
 				parentID := getDeterministicObjectID(entry.Browser, entry.Profile, entry.Timestamp, entry.URL)
 				
 				parentDoc := bson.M{
-					"_id":         parentID,
-					"browser":     entry.Browser,
-					"profile":     entry.Profile,
-					"timestamp":   entry.Timestamp,
-					"url":         entry.URL,
-					"title":       entry.Title,
-					"domain":      entry.Domain,
-					"visit_count": entry.VisitCount,
+					"_id":          parentID,
+					"browser":      entry.Browser,
+					"profile":      entry.Profile,
+					"timestamp":    entry.Timestamp,
+					"url":          entry.URL,
+					"title":        entry.Title,
+					"domain":       entry.Domain,
+					"visit_count":  entry.VisitCount,
+					"scheme":       entry.Scheme,
+					"username":     entry.Username,
+					"fqdn":         entry.FQDN,
+					"domain_name":  entry.DomainName,
+					"subdomain":    entry.Subdomain,
+					"tld":          entry.TLD,
+					"port":         entry.Port,
+					"path":         entry.Path,
+					"query_params": entry.QueryParams,
 				}
 
 				var childDoc bson.M

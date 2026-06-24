@@ -16,7 +16,11 @@ func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 	writer := csv.NewWriter(w)
 
 	// Write header
-	header := []string{"browser", "profile", "timestamp", "domain", "title", "url", "visit_count"}
+	header := []string{
+		"browser", "profile", "timestamp", "domain",
+		"scheme", "username", "fqdn", "domain_name", "subdomain", "tld", "port", "path", "query_params",
+		"title", "url", "visit_count",
+	}
 	_ = writer.Write(header)
 
 	for _, entry := range entries {
@@ -25,6 +29,15 @@ func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 			entry.Profile,
 			entry.Timestamp.Format(time.RFC3339),
 			entry.Domain,
+			entry.Scheme,
+			entry.Username,
+			entry.FQDN,
+			entry.DomainName,
+			entry.Subdomain,
+			entry.TLD,
+			entry.Port,
+			entry.Path,
+			entry.QueryParams,
 			entry.Title,
 			entry.URL,
 			fmt.Sprintf("%d", entry.VisitCount),

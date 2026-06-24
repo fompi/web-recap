@@ -12,6 +12,17 @@ type HistoryEntry struct {
 	Browser    string    `json:"browser"`
 	Profile    string    `json:"profile"`
 
+	// Enriched URL fields
+	Scheme      string `json:"scheme,omitempty"`
+	Username    string `json:"username,omitempty"`
+	FQDN        string `json:"fqdn,omitempty"`
+	DomainName  string `json:"domain_name,omitempty"`
+	Subdomain   string `json:"subdomain,omitempty"`
+	TLD         string `json:"tld,omitempty"`
+	Port        string `json:"port,omitempty"`
+	Path        string `json:"path,omitempty"`
+	QueryParams string `json:"query_params,omitempty"`
+
 	// Chrome-specific fields
 	VisitDuration int64 `json:"visit_duration,omitempty"`
 	Transition    int64 `json:"transition,omitempty"`

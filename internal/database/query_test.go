@@ -50,14 +50,14 @@ func TestQuery_NewQuerier(t *testing.T) {
 func TestQuery_QueryError(t *testing.T) {
 	// Call Query with unsupported type to check error
 	b := &browser.Browser{Type: browser.Type("unknown"), Path: "dummy"}
-	_, err := Query(b, time.Time{}, time.Time{}, false)
+	_, err := Query(b, time.Time{}, time.Time{}, false, false)
 	if err == nil {
 		t.Errorf("expected error, got nil")
 	}
 
 	// Call Query with a type that fails to query (e.g. non-existent SQLite path)
 	b2 := &browser.Browser{Type: browser.Chrome, Path: "/nonexistent/db"}
-	_, err = Query(b2, time.Time{}, time.Time{}, false)
+	_, err = Query(b2, time.Time{}, time.Time{}, false, false)
 	if err == nil {
 		t.Errorf("expected error querying non-existent path, got nil")
 	}
@@ -139,7 +139,7 @@ func TestQuery_Success(t *testing.T) {
 		Name: "chrome",
 	}
 
-	entries, err := Query(b, time.Time{}, time.Time{}, false)
+	entries, err := Query(b, time.Time{}, time.Time{}, false, false)
 	if err != nil {
 		t.Fatalf("failed to query: %v", err)
 	}
@@ -151,5 +151,89 @@ func TestQuery_Success(t *testing.T) {
 	// Verify that the entries are sorted descending by timestamp
 	if entries[0].URL != "https://example.com/url2" || entries[1].URL != "https://example.com/url3" || entries[2].URL != "https://example.com/url1" {
 		t.Errorf("expected sorted descending order: entries[0]=url2, entries[1]=url3, entries[2]=url1; got: entries[0]=%s, entries[1]=%s, entries[2]=%s", entries[0].URL, entries[1].URL, entries[2].URL)
+	}
+
+	// Verify enrichment
+	if entries[0].Scheme != "https" || entries[0].DomainName != "example.com" || entries[0].TLD != "com" {
+		t.Errorf("expected enrichment: Scheme=https, DomainName=example.com, TLD=com; got Scheme=%q, DomainName=%q, TLD=%q", entries[0].Scheme, entries[0].DomainName, entries[0].TLD)
+	}
+}
+
+func TestQuery_Censorship(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "query-censor-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dbPath := filepath.Join(tempDir, "History")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE urls (
+			id INTEGER PRIMARY KEY,
+			url TEXT,
+			title TEXT,
+			visit_count INTEGER,
+			typed_count INTEGER
+		);
+		CREATE TABLE visits (
+			id INTEGER PRIMARY KEY,
+			url INTEGER,
+			visit_time INTEGER,
+			visit_duration INTEGER,
+			transition INTEGER,
+			from_visit INTEGER,
+			segment_id INTEGER
+		);
+	`)
+	if err != nil {
+		db.Close()
+		t.Fatalf("failed to create tables: %v", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO urls (id, url, title, visit_count, typed_count) VALUES (1, 'https://admin:secret123@intranet.example.com/dashboard', 'Dashboard', 1, 0);
+		INSERT INTO visits (id, url, visit_time, visit_duration, transition, from_visit, segment_id) VALUES (1, 1, 13426423200000000, 0, 0, 0, 0);
+	`)
+	db.Close()
+	if err != nil {
+		t.Fatalf("failed to insert mock data: %v", err)
+	}
+
+	b := &browser.Browser{
+		Type: browser.Chrome,
+		Path: dbPath,
+		Name: "chrome",
+	}
+
+	// 1. Censor = true
+	entriesCensored, err := Query(b, time.Time{}, time.Time{}, false, true)
+	if err != nil {
+		t.Fatalf("failed to query: %v", err)
+	}
+	if len(entriesCensored) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entriesCensored))
+	}
+	if entriesCensored[0].URL != "https://admin:***@intranet.example.com/dashboard" {
+		t.Errorf("expected URL to be censored, got %q", entriesCensored[0].URL)
+	}
+	if entriesCensored[0].Username != "admin" {
+		t.Errorf("expected Username to be 'admin', got %q", entriesCensored[0].Username)
+	}
+
+	// 2. Censor = false
+	entriesRaw, err := Query(b, time.Time{}, time.Time{}, false, false)
+	if err != nil {
+		t.Fatalf("failed to query: %v", err)
+	}
+	if len(entriesRaw) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entriesRaw))
+	}
+	if entriesRaw[0].URL != "https://admin:secret123@intranet.example.com/dashboard" {
+		t.Errorf("expected raw URL, got %q", entriesRaw[0].URL)
 	}
 }
