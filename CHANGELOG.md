@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected MongoDB ingestion `insertedCount` calculation to sum `UpsertedCount` and `ModifiedCount` instead of `MatchedCount`, preventing inflated counts of unchanged records.
 - Optimized and secured `HasColumn` in SQLite utilities by querying `sqlite_master` and `PRAGMA table_info` instead of using `SELECT *`.
 
+### Changed
+- Refactored `ingest.go` by splitting the monolithic ingestion logic into smaller, cohesive files (`ingest_sql.go` and `ingest_mongo.go`).
+
+
 
 ## [0.3.4] - 2026-06-24
 
