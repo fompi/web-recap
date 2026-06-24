@@ -287,3 +287,60 @@ func TestIngestSQL_SQLiteModes(t *testing.T) {
 		}
 	})
 }
+
+func TestGetBrowserSpecificTableName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Chrome", "history_chrome"},
+		{"Google Chrome", "history_chrome"},
+		{"Microsoft Edge", "history_edge"},
+		{"Edge", "history_edge"},
+		{"Brave", "history_brave"},
+		{"Chromium", "history_chromium"},
+		{"Firefox", "history_firefox"},
+		{"Safari", "history_safari"},
+		// Custom / unknown browsers
+		{"My Browser", "history_my_browser"},
+		{"Custom-Browser-123", "history_custom_browser_123"},
+		// SQL Injection / special character inputs
+		{"chrome;DROP TABLE history--", "history_chromedrop_table_history__"},
+		{"brave' OR '1'='1", "history_brave"},
+		{"", "history_other"},
+		{"!!!", "history_other"},
+	}
+
+	for _, tc := range tests {
+		actual := getBrowserSpecificTableName(tc.input)
+		if actual != tc.expected {
+			t.Errorf("getBrowserSpecificTableName(%q) = %q; expected %q", tc.input, actual, tc.expected)
+		}
+	}
+}
+
+func TestGetDeterministicObjectID(t *testing.T) {
+	browser := "Chrome"
+	profile := "Default"
+	timestamp := time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC)
+	urlStr := "https://google.com"
+
+	id1 := getDeterministicObjectID(browser, profile, timestamp, urlStr)
+	id2 := getDeterministicObjectID(browser, profile, timestamp, urlStr)
+
+	if id1 != id2 {
+		t.Errorf("expected deterministic ObjectIDs, but got %v and %v", id1, id2)
+	}
+
+	// Verify that different inputs result in different IDs
+	id3 := getDeterministicObjectID(browser, profile, timestamp, "https://google.com/other")
+	if id1 == id3 {
+		t.Errorf("expected different ObjectIDs for different URLs, but they were identical")
+	}
+
+	// Verify the length of the ID bytes
+	if len(id1) != 12 {
+		t.Errorf("expected 12 bytes ObjectID, got %d bytes", len(id1))
+	}
+}
+

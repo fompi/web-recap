@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -226,6 +226,16 @@ func getBrowserSpecificTableName(browser string) string {
 	// Sanitize to prevent SQL injection in table name
 	b = strings.ReplaceAll(b, " ", "_")
 	b = strings.ReplaceAll(b, "-", "_")
+	var sb strings.Builder
+	for _, r := range b {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			sb.WriteRune(r)
+		}
+	}
+	b = sb.String()
+	if b == "" {
+		b = "other"
+	}
 	return "history_" + b
 }
 
@@ -1274,7 +1284,7 @@ func eToDocList(entries []models.HistoryEntry, mode string, flat bool) []mongoDo
 }
 
 func getDeterministicObjectID(browser, profile string, timestamp time.Time, urlStr string) primitive.ObjectID {
-	h := md5.New()
+	h := sha256.New()
 	h.Write([]byte(browser))
 	h.Write([]byte{0})
 	h.Write([]byte(profile))
