@@ -83,12 +83,12 @@ web-recap dump
 # Export history from last 7 days in JSON Lines format
 web-recap dump --from "7 days" --format jsonl
 
-# Export a specific date range from Chrome & Firefox to a compressed CSV
-web-recap dump -b chrome,firefox -f 2026-06-01 -t 2026-06-15 -F csv -o history.csv.gz -z
+# Export a specific date range from Chrome & Firefox to a compressed CSV (format and compression are autodetected)
+web-recap dump -b chrome,firefox -f 2026-06-01 -t 2026-06-15 -o history.csv.gz
 
-# Compress output using bzip2 (-zz) or xz (-zzz)
-web-recap dump -o history.json.bz2 -zz
-web-recap dump -o history.json.xz -zzz
+# Compress output automatically based on suffix (.bz2 or .xz)
+web-recap dump -o history.json.bz2
+web-recap dump -o history.json.xz
 ```
 
 ### View Statistics
@@ -118,7 +118,7 @@ web-recap ingest --connect <DSN> [flags]
 
 ### Ingestion Flags
 - `-c`, `--connect` (Required): Connection DSN string.
-- `-C`, `--conflict` (Default `skip`): Conflict resolution strategy (`skip`, `replace`, `keep`).
+- `-C`, `--conflict` (Default `skip`): Conflict resolution strategy (`skip`, `replace`).
 - `-M`, `--mode` (Default `merged`):
   - `merged`: Single `history` table containing only common columns.
   - `split`: Browser-specific tables containing common + raw columns.
