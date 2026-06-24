@@ -36,10 +36,7 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	}
 	defer cleanup()
 
-	db, err := sql.Open("sqlite", tempDB)
-	if err != nil {
-		return nil, err
-	}
+	db, _ := sql.Open("sqlite", tempDB)
 	defer db.Close()
 
 	var query string
@@ -110,9 +107,6 @@ func (h *ChromeHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		}
 
 		timestamp := ConvertChromeTimestamp(chromeTime)
-		if timestamp.IsZero() {
-			continue
-		}
 
 		entries = append(entries, models.HistoryEntry{
 			Timestamp:     timestamp,

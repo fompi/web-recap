@@ -37,7 +37,7 @@ var (
 	modeFlag         string
 	limitFlag        string
 	flatFlag         bool
-	version          = "0.3.3"
+	version          = "0.3.4"
 )
 
 
@@ -156,10 +156,12 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 }
 
+var osExit = os.Exit
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 }
 

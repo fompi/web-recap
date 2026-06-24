@@ -17,6 +17,9 @@ type Detector struct {
 }
 
 
+var isDarwinOS = (runtime.GOOS == "darwin")
+var sqlOpen = sql.Open
+
 // NewDetectorForUser creates a new browser detector for a specific home directory
 func NewDetectorForUser(homeDir string) *Detector {
 	return &Detector{HomeDir: homeDir}
@@ -56,7 +59,7 @@ func (d *Detector) Detect() []Browser {
 				})
 			}
 
-			if runtime.GOOS == "darwin" {
+			if isDarwinOS {
 				// Try standard path first, fallback to container path
 				profilesDir := filepath.Join(home, "Library/Safari/Profiles")
 				tabsDBPath := filepath.Join(home, "Library/Safari/SafariTabs.db")
@@ -266,7 +269,7 @@ func parseSafariProfiles(tabsDBPath string) map[string]string {
 	}
 	defer os.Remove(tempDB)
 
-	db, err := sql.Open("sqlite", tempDB)
+	db, err := sqlOpen("sqlite", tempDB)
 	if err != nil {
 		return names
 	}

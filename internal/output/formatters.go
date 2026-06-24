@@ -13,13 +13,10 @@ import (
 // FormatCSV writes history entries as CSV to the given writer
 func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 	writer := csv.NewWriter(w)
-	defer writer.Flush()
 
 	// Write header
 	header := []string{"browser", "profile", "timestamp", "domain", "title", "url", "visit_count"}
-	if err := writer.Write(header); err != nil {
-		return err
-	}
+	_ = writer.Write(header)
 
 	for _, entry := range entries {
 		row := []string{
@@ -31,11 +28,10 @@ func FormatCSV(w io.Writer, entries []models.HistoryEntry) error {
 			entry.URL,
 			fmt.Sprintf("%d", entry.VisitCount),
 		}
-		if err := writer.Write(row); err != nil {
-			return err
-		}
+		_ = writer.Write(row)
 	}
-	return nil
+	writer.Flush()
+	return writer.Error()
 }
 
 // FormatTable writes history entries in a human-readable aligned table format

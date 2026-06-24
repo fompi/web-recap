@@ -75,6 +75,14 @@ func TestParseTimeHelper(t *testing.T) {
 			input:     "invalid-date",
 			expectErr: true,
 		},
+		{
+			input:     "999999999999999999999999999999 days",
+			expectErr: true,
+		},
+		{
+			input:    "2026-06-20 10:15:30Z",
+			expected: time.Date(2026, 6, 20, 10, 15, 30, 0, time.UTC),
+		},
 	}
 
 	for _, tt := range tests {

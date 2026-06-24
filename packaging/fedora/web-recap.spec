@@ -1,5 +1,5 @@
 Name:           web-recap
-Version:        0.3.3
+Version:        0.3.4
 Release:        1%{?dist}
 Summary:        Extract browser history in human-friendly or machine-friendly formats
 
@@ -31,6 +31,20 @@ install -D -p -m 0644 man/%{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1.gz
 
 %changelog
+* Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.4-1
+- Comprehensive test suites for all packages (`internal/database`, `internal/browser`, `internal/output`, `internal/utils`, `cmd/web-recap`, and `scripts`), achieving nearly 100% test coverage across the codebase.
+- Fixed SQL injection vulnerability in browser-specific database table names by strictly sanitizing user-supplied browser names.
+- Replaced obsolete MD5 hashing algorithm with SHA-256 for generating deterministic MongoDB ObjectIDs.
+- Updated GitHub Actions CI workflows to use Go 1.25 and 1.26 to match the version specified in `go.mod`.
+- Fixed an inconsistency where history entry browser fields were set to internal type codes (e.g. `chrome`) instead of their human-readable display names (e.g. `Google Chrome`).
+- Removed redundant `--no-summary` (`-S`) flag, relying on `--summary=false` instead.
+- Fixed Arch Linux PKGBUILD declaring a runtime dependency on glibc when built statically with CGO disabled.
+- Removed redundant "flat" option from the `--mode` ingestion flag configuration, consolidating flat structure activation via the `--flat` flag.
+- Removed unused exported functions: `NewDetector()`, `GetBrowser()`, and `GetFirefoxProfilePath()`.
+- Removed unused sentinel errors: `ErrDatabaseLocked`, `ErrDatabaseError`, and `ErrFirefoxProfileNotFound`.
+- Consolidated duplicate file copying functions (`copyTempFile` and `copyFile`) by exporting a shared `CopyFile` helper in the `browser` package.
+- Consolidated duplicate `safariEpochDiff` constant declarations to a single package-level constant in `internal/database/util.go`.
+
 * Wed Jun 24 2026 Ferran Fontcuberta Figueràs <ferran@fompi.net> - 0.3.3-1
 - Refactored `README.md` to extract database schemas, rationale, and contributing guidelines into dedicated files (`docs/SCHEMA.md`, `docs/MIGRATION.md`, `CONTRIBUTING.md`).
 

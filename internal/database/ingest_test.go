@@ -1,13 +1,20 @@
 package database
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func TestIngestSQL_SQLiteModes(t *testing.T) {
@@ -341,6 +348,714 @@ func TestGetDeterministicObjectID(t *testing.T) {
 	// Verify the length of the ID bytes
 	if len(id1) != 12 {
 		t.Errorf("expected 12 bytes ObjectID, got %d bytes", len(id1))
+	}
+}
+
+func TestParseMySQLDSN(t *testing.T) {
+	tests := []struct {
+		input     string
+		expected  string
+		expectErr bool
+	}{
+		{
+			input:    "mysql://user:pass@localhost:3306/dbname",
+			expected: "user:pass@tcp(localhost:3306)/dbname?parseTime=true",
+		},
+		{
+			input:    "mysql://user@localhost/dbname?timeout=5s",
+			expected: "user@tcp(localhost:3306)/dbname?parseTime=true&timeout=5s",
+		},
+		{
+			input:    "mysql://localhost/dbname",
+			expected: "tcp(localhost:3306)/dbname?parseTime=true",
+		},
+		{
+			input:     "mysql://%4",
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		actual, err := parseMySQLDSN(tc.input)
+		if tc.expectErr {
+			if err == nil {
+				t.Errorf("expected error for %q, got nil", tc.input)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error for %q: %v", tc.input, err)
+			}
+			if actual != tc.expected {
+				t.Errorf("parseMySQLDSN(%q) = %q; expected %q", tc.input, actual, tc.expected)
+			}
+		}
+	}
+}
+
+func TestGetSQLTime(t *testing.T) {
+	tm := time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC)
+	
+	// Postgres returns time.Time
+	resPostgres := getSQLTime("postgres", tm)
+	if resPostgres != tm {
+		t.Errorf("expected time.Time, got %v", resPostgres)
+	}
+
+	// Other returns string
+	resOther := getSQLTime("sqlite", tm)
+	expectedStr := "2026-06-20 12:00:00.000000"
+	if resOther != expectedStr {
+		t.Errorf("expected %q, got %v", expectedStr, resOther)
+	}
+}
+
+func TestEToDocList(t *testing.T) {
+	entries := []models.HistoryEntry{
+		{
+			Browser:       "Chrome",
+			Profile:       "Default",
+			Timestamp:     time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			URL:           "https://google.com",
+			VisitDuration: 100,
+		},
+		{
+			Browser:   "Firefox",
+			Profile:   "Profile1",
+			Timestamp: time.Date(2026, 6, 20, 12, 5, 0, 0, time.UTC),
+			URL:       "https://firefox.com",
+			VisitType: 3,
+		},
+		{
+			Browser:        "Safari",
+			Profile:        "Default",
+			Timestamp:      time.Date(2026, 6, 20, 12, 10, 0, 0, time.UTC),
+			URL:            "https://apple.com",
+			LoadSuccessful: true,
+		},
+	}
+
+	// 1. Merged mode
+	jobs := eToDocList(entries, "merged", false)
+	if len(jobs) != 3 || len(jobs[0].colls) != 1 || jobs[0].colls[0] != "history" {
+		t.Errorf("unexpected merged jobs: %+v", jobs)
+	}
+	if _, hasDuration := jobs[0].doc["visit_duration"]; hasDuration {
+		t.Errorf("expected relational merged job to exclude visit_duration")
+	}
+
+	// 2. Merged flat mode
+	jobs = eToDocList(entries, "merged", true)
+	if _, hasDuration := jobs[0].doc["visit_duration"]; !hasDuration {
+		t.Errorf("expected flat merged job to include visit_duration")
+	}
+
+	// 3. Split mode
+	jobs = eToDocList(entries, "split", false)
+	if len(jobs) != 3 || jobs[0].colls[0] != "history_chrome" {
+		t.Errorf("unexpected split jobs: %+v", jobs)
+	}
+
+	// 4. Both mode flat
+	jobs = eToDocList(entries, "both", true)
+	if len(jobs) != 6 {
+		t.Errorf("expected 6 jobs in both flat mode, got %d", len(jobs))
+	}
+
+	// 5. Both mode relational (non-flat)
+	jobs = eToDocList(entries, "both", false)
+	if len(jobs) != 6 {
+		t.Errorf("expected 6 jobs in both relational mode, got %d", len(jobs))
+	}
+}
+
+func TestSQLQueryBuilders(t *testing.T) {
+	e := models.HistoryEntry{
+		Browser:   "Chrome",
+		Profile:   "Default",
+		Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+		URL:       "https://google.com",
+	}
+
+	drivers := []string{"postgres", "sqlite", "mysql"}
+	conflicts := []string{"replace", "skip"}
+
+	for _, d := range drivers {
+		for _, c := range conflicts {
+			buildSQLInsertMerged(d, "tbl", e, c)
+			buildSQLInsertFlat(d, "tbl", e, c)
+			buildSQLInsertChrome(d, "tbl", e, c)
+			buildSQLInsertFirefox(d, "tbl", e, c)
+			buildSQLInsertSafari(d, "tbl", e, c)
+			buildSQLInsertChildChrome(d, "tbl", 123, e, c)
+			buildSQLInsertChildFirefox(d, "tbl", 123, e, c)
+			buildSQLInsertChildSafari(d, "tbl", 123, e, c)
+		}
+	}
+}
+
+func TestIngest_ErrorPaths(t *testing.T) {
+	// 1. Invalid conflict strategy
+	_, err := Ingest("sqlite://test.db", nil, "invalid", "merged", false)
+	if err == nil {
+		t.Errorf("expected error for invalid conflict strategy, got nil")
+	}
+
+	// 2. Invalid mysql connection string
+	_, err = Ingest("mysql://%4", nil, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected error for invalid mysql DSN, got nil")
+	}
+
+	// 3. PostgreSQL connection error (returns error)
+	_, err = Ingest("postgres://localhost:5432/nonexistent", nil, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected error connecting to postgres, got nil")
+	}
+}
+
+type mockMongoClient struct {
+	db *mockMongoDatabase
+}
+
+func (c *mockMongoClient) Database(name string) mongoDatabase {
+	return c.db
+}
+
+func (c *mockMongoClient) Disconnect(ctx context.Context) error {
+	return nil
+}
+
+type mockMongoDatabase struct {
+	collections map[string]*mockMongoCollection
+}
+
+func (d *mockMongoDatabase) Collection(name string) mongoCollection {
+	if _, ok := d.collections[name]; !ok {
+		d.collections[name] = &mockMongoCollection{
+			models: []mongo.WriteModel{},
+		}
+	}
+	return d.collections[name]
+}
+
+type mockMongoCollection struct {
+	models []mongo.WriteModel
+}
+
+func (c *mockMongoCollection) Indexes() mongoIndexView {
+	return &mockMongoIndexView{}
+}
+
+func (c *mockMongoCollection) BulkWrite(ctx context.Context, models []mongo.WriteModel, opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
+	c.models = append(c.models, models...)
+	return &mongo.BulkWriteResult{
+		UpsertedCount: int64(len(models)),
+	}, nil
+}
+
+type mockMongoIndexView struct{}
+
+func (v *mockMongoIndexView) CreateOne(ctx context.Context, model mongo.IndexModel, opts ...*options.CreateIndexesOptions) (string, error) {
+	return "", nil
+}
+
+func TestIngestMongoDB_Success(t *testing.T) {
+	// Temporarily override newMongoClient
+	oldNewMongoClient := newMongoClient
+	mockColls := make(map[string]*mockMongoCollection)
+	newMongoClient = func(ctx context.Context, uri string) (mongoClient, error) {
+		return &mockMongoClient{
+			db: &mockMongoDatabase{collections: mockColls},
+		}, nil
+	}
+	defer func() { newMongoClient = oldNewMongoClient }()
+
+	entries := []models.HistoryEntry{
+		{
+			Browser:   "Chrome",
+			Profile:   "Default",
+			Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			URL:       "https://google.com",
+		},
+		{
+			Browser:   "Firefox",
+			Profile:   "Profile1",
+			Timestamp: time.Date(2026, 6, 20, 12, 5, 0, 0, time.UTC),
+			URL:       "https://firefox.com",
+		},
+		{
+			Browser:   "Safari",
+			Profile:   "Personal",
+			Timestamp: time.Date(2026, 6, 20, 12, 10, 0, 0, time.UTC),
+			URL:       "https://apple.com",
+		},
+	}
+
+	// Test 1: mode = both, flat = false
+	count, err := Ingest("mongodb://localhost/testdb", entries, "skip", "both", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 entries, got %d", count)
+	}
+
+	// Test 2: mode = both, conflict = replace, flat = true
+	count, err = Ingest("mongodb://localhost/testdb?connectTimeoutMS=1000", entries, "replace", "both", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 entries, got %d", count)
+	}
+
+	// Test 3: mode = split
+	count, err = Ingest("mongodb://localhost/", entries, "skip", "split", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 entries, got %d", count)
+	}
+}
+
+func TestIngestMongoDB_ConnectError(t *testing.T) {
+	oldNewMongoClient := newMongoClient
+	newMongoClient = func(ctx context.Context, uri string) (mongoClient, error) {
+		return nil, errors.New("mock connection error")
+	}
+	defer func() { newMongoClient = oldNewMongoClient }()
+
+	_, err := Ingest("mongodb://localhost/testdb", nil, "skip", "both", false)
+	if err == nil {
+		t.Errorf("expected error, got nil")
+	}
+}
+
+var mockDriverRegistered = false
+
+func registerMockDriver() {
+	if !mockDriverRegistered {
+		sql.Register("mock-sql-driver", &mockDriver{})
+		mockDriverRegistered = true
+	}
+}
+
+var (
+	mockTxError     = false
+	mockExecError   = false
+	mockRowsEmpty   = false
+	mockRowsError   = false
+	mockCommitError = false
+)
+
+type mockDriver struct{}
+
+func (d *mockDriver) Open(name string) (driver.Conn, error) {
+	return &mockConn{}, nil
+}
+
+type mockConn struct{}
+
+func (c *mockConn) Prepare(query string) (driver.Stmt, error) {
+	return &mockStmt{}, nil
+}
+
+func (c *mockConn) Close() error {
+	return nil
+}
+
+func (c *mockConn) Begin() (driver.Tx, error) {
+	if mockTxError {
+		return nil, errors.New("mock tx error")
+	}
+	return &mockTx{}, nil
+}
+
+func (c *mockConn) Exec(query string, args []driver.Value) (driver.Result, error) {
+	if mockExecError && strings.Contains(query, "INSERT") {
+		return nil, errors.New("mock exec error")
+	}
+	return &mockResult{}, nil
+}
+
+func (c *mockConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	if mockExecError && strings.Contains(query, "INSERT") {
+		return nil, errors.New("mock exec error")
+	}
+	return &mockResult{}, nil
+}
+
+type mockTx struct{}
+
+func (t *mockTx) Commit() error {
+	if mockCommitError {
+		return errors.New("mock commit error")
+	}
+	return nil
+}
+
+func (t *mockTx) Rollback() error {
+	return nil
+}
+
+type mockStmt struct{}
+
+func (s *mockStmt) Close() error {
+	return nil
+}
+
+func (s *mockStmt) NumInput() int {
+	return -1
+}
+
+func (s *mockStmt) Exec(args []driver.Value) (driver.Result, error) {
+	if mockExecError {
+		return nil, errors.New("mock exec error")
+	}
+	return &mockResult{}, nil
+}
+
+func (s *mockStmt) Query(args []driver.Value) (driver.Rows, error) {
+	return &mockRows{}, nil
+}
+
+type mockResult struct{}
+
+func (r *mockResult) LastInsertId() (int64, error) {
+	return 1, nil
+}
+
+func (r *mockResult) RowsAffected() (int64, error) {
+	return 1, nil
+}
+
+type mockRows struct {
+	nextCalled bool
+}
+
+func (r *mockRows) Columns() []string {
+	return []string{"id"}
+}
+
+func (r *mockRows) Close() error {
+	return nil
+}
+
+func (r *mockRows) Next(dest []driver.Value) error {
+	if mockRowsEmpty {
+		return io.EOF
+	}
+	if mockRowsError {
+		return errors.New("mock rows error")
+	}
+	if r.nextCalled {
+		return io.EOF
+	}
+	r.nextCalled = true
+	dest[0] = int64(42)
+	return nil
+}
+
+func TestSQLTables_PostgresAndMySQL(t *testing.T) {
+	registerMockDriver()
+
+	db, err := sql.Open("mock-sql-driver", "whatever")
+	if err != nil {
+		t.Fatalf("failed to open mock db: %v", err)
+	}
+	defer db.Close()
+
+	drivers := []string{"postgres", "mysql", "sqlite"}
+	modes := []string{"merged", "split", "both"}
+	flats := []bool{true, false}
+
+	for _, driverName := range drivers {
+		for _, mode := range modes {
+			for _, flat := range flats {
+				err := createSQLTables(db, driverName, mode, flat)
+				if err != nil {
+					t.Errorf("unexpected error in createSQLTables(%s, %s, %v): %v", driverName, mode, flat, err)
+				}
+			}
+		}
+	}
+}
+
+func TestGetParentID_Postgres(t *testing.T) {
+	registerMockDriver()
+
+	db, err := sql.Open("mock-sql-driver", "whatever")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	entry := models.HistoryEntry{
+		Browser:   "Chrome",
+		Profile:   "Default",
+		Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+		URL:       "https://google.com",
+	}
+
+	id, err := getParentID(tx, "postgres", entry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != 42 {
+		t.Errorf("expected parent ID 42, got %d", id)
+	}
+}
+
+func TestRealMongoWrappers(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately to fail calls gracefully
+
+	// Test newMongoClient with invalid URI
+	_, err := newMongoClient(context.Background(), "mongodb://%4")
+	if err == nil {
+		t.Errorf("expected Connect error for invalid URI, got nil")
+	}
+
+	// Test newMongoClient with valid URI but cancelled context
+	client, err := newMongoClient(context.Background(), "mongodb://localhost:27017")
+	if err != nil {
+		t.Logf("mongo.Connect failed: %v", err)
+		return
+	}
+
+	db := client.Database("testdb")
+	coll := db.Collection("testcoll")
+	indexes := coll.Indexes()
+
+	// Call Indexes.CreateOne (should return error since context is cancelled)
+	_, _ = indexes.CreateOne(ctx, mongo.IndexModel{})
+
+	// Call BulkWrite (should return error)
+	_, _ = coll.BulkWrite(ctx, nil)
+
+	// Call Disconnect (should return error or succeed)
+	_ = client.Disconnect(ctx)
+}
+
+func TestIngest_CoverBranches(t *testing.T) {
+	registerMockDriver()
+
+	// Reset mock variables on exit
+	defer func() {
+		mockTxError = false
+		mockExecError = false
+		mockRowsEmpty = false
+		mockRowsError = false
+		mockCommitError = false
+	}()
+
+	entries := []models.HistoryEntry{
+		{
+			Browser:   "Chrome",
+			Profile:   "Default",
+			Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			URL:       "https://google.com",
+		},
+	}
+
+	// 1. empty conflict strategy -> defaults to skip
+	count, err := Ingest("sqlite://:memory:", entries, "", "merged", false)
+	if err != nil || count != 1 {
+		t.Errorf("expected success with empty conflict strategy, got count=%d, err=%v", count, err)
+	}
+
+	// 2. default invalid mode -> defaults to merged
+	count, err = Ingest("sqlite://:memory:", entries, "skip", "invalid-mode", false)
+	if err != nil || count != 1 {
+		t.Errorf("expected success with invalid mode falling back, got count=%d, err=%v", count, err)
+	}
+
+	// 3. sqlite3:// prefix and postgresql:// prefix (postgresql will connect error, but tests the prefix path)
+	_, err = Ingest("sqlite3://:memory:", entries, "skip", "merged", false)
+	if err != nil {
+		t.Errorf("expected success with sqlite3 prefix, got %v", err)
+	}
+	_, err = Ingest("postgresql://localhost:5432/nonexistent", nil, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected error with postgresql prefix, got nil")
+	}
+
+	// 4. No prefix fallback to sqlite
+	tempDir, err := os.MkdirTemp("", "fallback-test-*")
+	if err == nil {
+		defer os.RemoveAll(tempDir)
+		dbPath := filepath.Join(tempDir, "fallback.db")
+		_, err = Ingest(dbPath, entries, "skip", "merged", false)
+		if err != nil {
+			t.Errorf("expected success with no prefix SQLite, got %v", err)
+		}
+	}
+
+	// 5. sql.Open error in ingestSQL
+	_, err = ingestSQL("invalid-driver", "...", nil, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected error from invalid sql driver, got nil")
+	}
+
+	// 6. sqlite PRAGMA error by passing nonexistent directory path
+	_, err = ingestSQL("sqlite", "/nonexistent-dir-for-pragma/test.db", nil, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected error on nonexistent directory sqlite database, got nil")
+	}
+
+	// 7. createRelationalChildTable default return case
+	res := createRelationalChildTable("sqlite", "history_other", "other")
+	if res != "" {
+		t.Errorf("expected empty string, got %q", res)
+	}
+
+	// 8. mockConn Begin() error
+	mockTxError = true
+	_, err = ingestSQL("mock-sql-driver", "whatever", entries, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected Begin() error, got nil")
+	}
+	mockTxError = false
+
+	// 9. parent insert tx.Exec error
+	mockExecError = true
+	_, err = ingestSQL("mock-sql-driver", "whatever", entries, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected Exec() error on parent, got nil")
+	}
+	mockExecError = false
+
+	// 10. getParentID returning sql.ErrNoRows (causes continue in relational child insert)
+	mockRowsEmpty = true
+	entriesBoth := []models.HistoryEntry{
+		{
+			Browser:   "Chrome",
+			Profile:   "Default",
+			Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			URL:       "https://google.com",
+		},
+	}
+	// Run both mode, relational. It will insert parent, then call getParentID, which returns ErrNoRows. It should continue without error.
+	_, err = ingestSQL("mock-sql-driver", "whatever", entriesBoth, "skip", "both", false)
+	if err != nil {
+		t.Errorf("expected success despite ErrNoRows on child insert, got %v", err)
+	}
+	mockRowsEmpty = false
+
+	// 11. getParentID returning rows error
+	mockRowsError = true
+	_, err = ingestSQL("mock-sql-driver", "whatever", entriesBoth, "skip", "both", false)
+	if err == nil {
+		t.Errorf("expected error from getParentID database error, got nil")
+	}
+	mockRowsError = false
+
+	// 12. child insert tx.Exec error (Firefox and Safari child insertions)
+	// We'll set mockExecError to true but only after the first Exec (parent insert).
+	// To do this simply without complex state in mock driver, we can use both mode and since parent insert succeeds if mockExecError is false,
+	// wait, we can just trigger it by setting mockExecError = true. But then parent insert will fail first.
+	// Oh! What if mode = "split"? In split mode, there is NO parent insert! It directly inserts child!
+	// So in split mode, the first Exec is the child insert!
+	// If we set mockExecError = true, the split mode child insert fails, covering the flat/split child insert error!
+	mockExecError = true
+	_, err = ingestSQL("mock-sql-driver", "whatever", entries, "skip", "split", false)
+	if err == nil {
+		t.Errorf("expected child insert Exec error, got nil")
+	}
+	mockExecError = false
+
+	// 13. child relational insert tx.Exec error
+	// To make parent insert succeed but child relational insert fail:
+	// We can use conflictStrategy = "replace" and mockRowsEmpty = false.
+	// In mockConn.ExecContext, we can count the executions and return error on the second execution!
+	// Let's implement execution counter in mockConn
+}
+
+type countingConn struct {
+	execCount int
+}
+
+func (c *countingConn) Prepare(query string) (driver.Stmt, error) {
+	return &mockStmt{}, nil
+}
+
+func (c *countingConn) Close() error {
+	return nil
+}
+
+func (c *countingConn) Begin() (driver.Tx, error) {
+	return &countingTx{c: c}, nil
+}
+
+func (c *countingConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	if strings.Contains(query, "INSERT") {
+		c.execCount++
+		if c.execCount == 2 {
+			return nil, errors.New("mock child exec error")
+		}
+	}
+	return &mockResult{}, nil
+}
+
+type countingTx struct {
+	c *countingConn
+}
+
+func (t *countingTx) Commit() error   { return nil }
+func (t *countingTx) Rollback() error { return nil }
+
+type countingDriver struct{}
+
+func (d *countingDriver) Open(name string) (driver.Conn, error) {
+	return &countingConn{}, nil
+}
+
+func TestChildRelationalInsert_ExecError(t *testing.T) {
+	sql.Register("counting-sql-driver", &countingDriver{})
+
+	entries := []models.HistoryEntry{
+		{
+			Browser:   "Chrome",
+			Profile:   "Default",
+			Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			URL:       "https://google.com",
+		},
+	}
+
+	// In both mode, relational (flat=false), with replace strategy, parent insert is Exec 1.
+	// Then getParentID runs (returns 42 from mockRows since mockRows is still using mockRows helper).
+	// Then child relational insert runs as Exec 2.
+	// Our counting driver will return error on Exec 2, triggering child insert failure!
+	_, err := ingestSQL("counting-sql-driver", "whatever", entries, "replace", "both", false)
+	if err == nil {
+		t.Errorf("expected child relational insert error, got nil")
+	}
+}
+
+func TestCommitError(t *testing.T) {
+	registerMockDriver()
+	mockCommitError = true
+	defer func() { mockCommitError = false }()
+
+	entries := []models.HistoryEntry{
+		{
+			Browser:   "Chrome",
+			Profile:   "Default",
+			Timestamp: time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC),
+			URL:       "https://google.com",
+		},
+	}
+
+	_, err := ingestSQL("mock-sql-driver", "whatever", entries, "skip", "merged", false)
+	if err == nil {
+		t.Errorf("expected commit error, got nil")
 	}
 }
 

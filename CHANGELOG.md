@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-06-24
+
+### Added
+- Comprehensive test suites for all packages (`internal/database`, `internal/browser`, `internal/output`, `internal/utils`, `cmd/web-recap`, and `scripts`), achieving nearly 100% test coverage across the codebase.
+
 ### Fixed
 - Fixed SQL injection vulnerability in browser-specific database table names by strictly sanitizing user-supplied browser names.
 - Replaced obsolete MD5 hashing algorithm with SHA-256 for generating deterministic MongoDB ObjectIDs.

@@ -9,23 +9,28 @@ import (
 	"time"
 )
 
+var (
+	osArgs = os.Args
+	osExit = os.Exit
+)
+
 func main() {
-	if len(os.Args) < 2 {
+	if len(osArgs) < 2 {
 		fmt.Println("Usage: go run scripts/bump.go <new_version>")
-		os.Exit(1)
+		osExit(1)
 	}
 
-	newVersion := strings.TrimSpace(os.Args[1])
+	newVersion := strings.TrimSpace(osArgs[1])
 	if newVersion == "" {
 		fmt.Println("Error: new version cannot be empty")
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 1. Read old version from VERSION file
 	oldVersionBytes, err := os.ReadFile("VERSION")
 	if err != nil {
 		fmt.Printf("Error reading VERSION file: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 	oldVersion := strings.TrimSpace(string(oldVersionBytes))
 	fmt.Printf("Bumping version from %s to %s...\n", oldVersion, newVersion)
@@ -34,14 +39,14 @@ func main() {
 	changelogBytes, err := os.ReadFile("CHANGELOG.md")
 	if err != nil {
 		fmt.Printf("Error reading CHANGELOG.md: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 	changelog := string(changelogBytes)
 
 	// Check if ## [Unreleased] exists
 	if !strings.Contains(changelog, "## [Unreleased]") {
 		fmt.Println("Error: CHANGELOG.md does not contain '## [Unreleased]' section")
-		os.Exit(1)
+		osExit(1)
 	}
 
 	today := time.Now().Format("2006-01-02")
@@ -51,20 +56,20 @@ func main() {
 	// Save CHANGELOG.md
 	if err := os.WriteFile("CHANGELOG.md", []byte(newChangelog), 0644); err != nil {
 		fmt.Printf("Error writing CHANGELOG.md: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 3. Extract release notes from the newly created section in CHANGELOG.md
 	startIdx := strings.Index(newChangelog, "## ["+newVersion+"]")
 	if startIdx == -1 {
 		fmt.Println("Error finding new release section in CHANGELOG.md")
-		os.Exit(1)
+		osExit(1)
 	}
 
 	headerLineEnd := strings.Index(newChangelog[startIdx:], "\n")
 	if headerLineEnd == -1 {
 		fmt.Println("Error parsing header line end in CHANGELOG.md")
-		os.Exit(1)
+		osExit(1)
 	}
 	searchStart := startIdx + headerLineEnd + 1
 	var notesBuilder strings.Builder
@@ -98,7 +103,7 @@ func main() {
 	// 4. Overwrite VERSION file
 	if err := os.WriteFile("VERSION", []byte(newVersion+"\n"), 0644); err != nil {
 		fmt.Printf("Error writing VERSION file: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 5. Update cmd/web-recap/main.go
@@ -108,7 +113,7 @@ func main() {
 		`version          = "`+newVersion+`"`,
 	); err != nil {
 		fmt.Printf("Error updating main.go: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 6. Update Makefile
@@ -118,7 +123,7 @@ func main() {
 		"VERSION ?= "+newVersion,
 	); err != nil {
 		fmt.Printf("Error updating Makefile: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 7. Update packaging/arch/PKGBUILD
@@ -128,14 +133,14 @@ func main() {
 		"pkgver="+newVersion,
 	); err != nil {
 		fmt.Printf("Error updating PKGBUILD: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 8. Update man/web-recap.1
 	manBytes, err := os.ReadFile(filepath.Join("man", "web-recap.1"))
 	if err != nil {
 		fmt.Printf("Error reading man page: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 	manContent := string(manBytes)
 	manRegex := regexp.MustCompile(`\.TH WEB-RECAP 1 "[0-9-]+" "web-recap [0-9.]+"`)
@@ -143,7 +148,7 @@ func main() {
 	newManContent := manRegex.ReplaceAllString(manContent, updatedManHeader)
 	if err := os.WriteFile(filepath.Join("man", "web-recap.1"), []byte(newManContent), 0644); err != nil {
 		fmt.Printf("Error writing man page: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 9. Update debian/changelog
@@ -151,7 +156,7 @@ func main() {
 	debChangelogBytes, err := os.ReadFile(changelogPath)
 	if err != nil {
 		fmt.Printf("Error reading debian/changelog: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 	debChangelog := string(debChangelogBytes)
 
@@ -173,7 +178,7 @@ func main() {
 
 	if err := os.WriteFile(changelogPath, []byte(debEntry+debChangelog), 0644); err != nil {
 		fmt.Printf("Error writing debian/changelog: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	// 10. Update packaging/fedora/web-recap.spec
@@ -181,7 +186,7 @@ func main() {
 	specBytes, err := os.ReadFile(specPath)
 	if err != nil {
 		fmt.Printf("Error reading web-recap.spec: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 	specContent := string(specBytes)
 
@@ -209,7 +214,7 @@ func main() {
 
 	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
 		fmt.Printf("Error writing web-recap.spec: %v\n", err)
-		os.Exit(1)
+		osExit(1)
 	}
 
 	fmt.Println("Successfully synchronized all files!")

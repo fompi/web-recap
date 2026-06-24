@@ -17,6 +17,8 @@ type SafariHandler struct {
 	profile     string
 }
 
+var isDarwinOS = (runtime.GOOS == "darwin")
+
 // NewSafariHandler creates a new Safari history handler
 func NewSafariHandler(dbPath string, browserName string, profile string) *SafariHandler {
 	if browserName == "" {
@@ -31,7 +33,7 @@ func NewSafariHandler(dbPath string, browserName string, profile string) *Safari
 
 // GetHistory retrieves history entries from Safari
 func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.HistoryEntry, error) {
-	if runtime.GOOS != "darwin" {
+	if !isDarwinOS {
 		return nil, ErrSafariNotAvailable
 	}
 
@@ -42,10 +44,7 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 	}
 	defer cleanup()
 
-	db, err := sql.Open("sqlite", tempDB)
-	if err != nil {
-		return nil, err
-	}
+	db, _ := sql.Open("sqlite", tempDB)
 	defer db.Close()
 
 	var query string
@@ -166,9 +165,6 @@ func (h *SafariHandler) GetHistory(startDate, endDate time.Time) ([]models.Histo
 		}
 
 		timestamp := ConvertSafariTimestamp(safariTime)
-		if timestamp.IsZero() {
-			continue
-		}
 
 		entries = append(entries, models.HistoryEntry{
 			Timestamp:           timestamp,

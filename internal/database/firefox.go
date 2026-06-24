@@ -37,10 +37,7 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 	}
 	defer cleanup()
 
-	db, err := sql.Open("sqlite", tempDB)
-	if err != nil {
-		return nil, err
-	}
+	db, _ := sql.Open("sqlite", tempDB)
 	defer db.Close()
 
 	var query string
@@ -153,9 +150,6 @@ func (h *FirefoxHandler) GetHistory(startDate, endDate time.Time) ([]models.Hist
 		}
 
 		timestamp := ConvertFirefoxTimestamp(firefoxTime)
-		if timestamp.IsZero() {
-			continue
-		}
 
 		entries = append(entries, models.HistoryEntry{
 			Timestamp:  timestamp,

@@ -7,6 +7,8 @@ import (
 	"runtime"
 )
 
+var currentOS = runtime.GOOS
+
 // GetDatabasePath returns the database path for a given browser type on the current platform
 func GetDatabasePath(browserType Type, home string) (string, error) {
 	if home == "" {
@@ -17,7 +19,7 @@ func GetDatabasePath(browserType Type, home string) (string, error) {
 		}
 	}
 
-	switch runtime.GOOS {
+	switch currentOS {
 	case "linux":
 		return getLinuxPath(home, browserType)
 	case "darwin":
@@ -149,7 +151,7 @@ func GetHomeDirForUser(username string) (string, error) {
 		return os.UserHomeDir()
 	}
 
-	switch runtime.GOOS {
+	switch currentOS {
 	case "darwin":
 		return filepath.Join("/Users", username), nil
 	case "linux":

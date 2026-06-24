@@ -1066,7 +1066,7 @@ func boolToInt(b bool) int {
 }
 
 func ingestMongoDB(ctx context.Context, uri string, entries []models.HistoryEntry, conflictStrategy, mode string, flat bool) (int, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	client, err := newMongoClient(ctx, uri)
 	if err != nil {
 		return 0, err
 	}
@@ -1328,4 +1328,70 @@ func parseMySQLDSN(connectStr string) (string, error) {
 		dsn += "&" + u.RawQuery
 	}
 	return dsn, nil
+}
+
+type mongoClient interface {
+	Database(name string) mongoDatabase
+	Disconnect(ctx context.Context) error
+}
+
+type mongoDatabase interface {
+	Collection(name string) mongoCollection
+}
+
+type mongoCollection interface {
+	Indexes() mongoIndexView
+	BulkWrite(ctx context.Context, models []mongo.WriteModel, opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error)
+}
+
+type mongoIndexView interface {
+	CreateOne(ctx context.Context, model mongo.IndexModel, opts ...*options.CreateIndexesOptions) (string, error)
+}
+
+var newMongoClient = func(ctx context.Context, uri string) (mongoClient, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, err
+	}
+	return &realMongoClient{client: client}, nil
+}
+
+type realMongoClient struct {
+	client *mongo.Client
+}
+
+func (c *realMongoClient) Database(name string) mongoDatabase {
+	return &realMongoDatabase{db: c.client.Database(name)}
+}
+
+func (c *realMongoClient) Disconnect(ctx context.Context) error {
+	return c.client.Disconnect(ctx)
+}
+
+type realMongoDatabase struct {
+	db *mongo.Database
+}
+
+func (d *realMongoDatabase) Collection(name string) mongoCollection {
+	return &realMongoCollection{coll: d.db.Collection(name)}
+}
+
+type realMongoCollection struct {
+	coll *mongo.Collection
+}
+
+func (c *realMongoCollection) Indexes() mongoIndexView {
+	return &realMongoIndexView{view: c.coll.Indexes()}
+}
+
+func (c *realMongoCollection) BulkWrite(ctx context.Context, models []mongo.WriteModel, opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
+	return c.coll.BulkWrite(ctx, models, opts...)
+}
+
+type realMongoIndexView struct {
+	view mongo.IndexView
+}
+
+func (v *realMongoIndexView) CreateOne(ctx context.Context, model mongo.IndexModel, opts ...*options.CreateIndexesOptions) (string, error) {
+	return v.view.CreateOne(ctx, model, opts...)
 }

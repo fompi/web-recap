@@ -18,6 +18,13 @@ go test -v ./...
 make build
 ```
 
+## Testing Requirements
+
+This project aims to maintain near 100% test coverage across all packages. When submitting a pull request, ensure that:
+1. Any new features or packages include comprehensive unit tests.
+2. Any bug fixes include a regression test to prevent future occurrences.
+3. You run `go test -cover ./...` locally and verify that test coverage remains optimal.
+
 ## Release Process
 
 `CHANGELOG.md` and `VERSION` act as the single sources of truth for the project. 

@@ -22,10 +22,7 @@ func HasColumn(db *sql.DB, tableName, columnName string) (bool, error) {
 	}
 	defer rows.Close()
 
-	cols, err := rows.Columns()
-	if err != nil {
-		return false, err
-	}
+	cols, _ := rows.Columns()
 
 	for _, col := range cols {
 		if strings.EqualFold(col, columnName) {

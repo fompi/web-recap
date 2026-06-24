@@ -39,3 +39,4 @@ dist/
 # Build output
 bin/
 lessons.md
+history.*

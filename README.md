@@ -162,7 +162,7 @@ If you need detailed information about the tables structure for database ingesti
 
 ## Contributing & Development
 
-We welcome issues and pull requests! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to set up your environment, run tests, and execute the automated release process.
+We welcome issues and pull requests! The codebase maintains near 100% test coverage across all core packages. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to set up your environment, run tests, and execute the automated release process.
 
 ---
 
