@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored `ingest.go` by splitting the monolithic ingestion logic into smaller, cohesive files (`ingest_sql.go` and `ingest_mongo.go`).
 - Configured `Makefile` to output compiled binaries to the `bin/` directory instead of the project root.
 - Documented the dual-packaging directory structure (root-level `debian/` vs `packaging/`) in `README.md`.
+- Upgraded GitHub Actions CI/CD workflows to use modern, non-deprecated actions (`setup-go@v5`, `cache@v4`, and `action-gh-release@v2`).
+
 
 
 
