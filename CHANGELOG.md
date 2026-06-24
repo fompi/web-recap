@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `web-recap list` now annotates each profile with its access status (`[Readable]`, `[Access Denied (requires Full Disk Access)]`, or `[Not found]`), matching what the README already described (#28).
+
 ### Fixed
 - `FormatJSON` now emits `[]` instead of `null` when there are no history entries, preventing downstream consumers from receiving an unexpected null value (#22).
 - Summary line now reports the actual system timezone (via `loc.String()`) instead of always printing `UTC` when no `--timezone` flag is provided (#23).

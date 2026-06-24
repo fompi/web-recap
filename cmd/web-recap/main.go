@@ -93,7 +93,18 @@ var listCmd = &cobra.Command{
 
 		fmt.Println("Detected browsers and profiles:")
 		for _, b := range browsers {
-			fmt.Printf("  - %s (profile: %s, type: %s): %s\n", b.Name, b.Profile, b.Type, b.Path)
+			status := "[Readable]"
+			f, err := os.Open(b.Path)
+			if err != nil {
+				if os.IsPermission(err) {
+					status = "[Access Denied (requires Full Disk Access)]"
+				} else {
+					status = "[Not found]"
+				}
+			} else {
+				f.Close()
+			}
+			fmt.Printf("  - %s (profile: %s, type: %s): %s %s\n", b.Name, b.Profile, b.Type, b.Path, status)
 		}
 
 		return nil
@@ -652,7 +663,7 @@ func parseDBPaths(dbFlag string, browsers []string) (map[string]string, error) {
 			idx := strings.Index(part, ":")
 			prefix := part[:idx]
 			isBrowser := false
-			for _, b := range []string{"chrome", "chromium", "edge", "brave", "firefox", "safari"} {
+			for _, b := range []string{"chrome", "chromium", "edge", "brave", "vivaldi", "firefox", "safari"} {
 				if prefix == b {
 					isBrowser = true
 					break
@@ -728,7 +739,7 @@ func resolveBrowsers(browserFlag string, detector *browser.Detector, dbPaths map
 		bType := browser.Type(part)
 
 		switch bType {
-		case browser.Chrome, browser.Chromium, browser.Edge, browser.Brave, browser.Firefox, browser.Safari:
+		case browser.Chrome, browser.Chromium, browser.Edge, browser.Brave, browser.Vivaldi, browser.Firefox, browser.Safari:
 		default:
 			return nil, fmt.Errorf("unsupported browser type %q", part)
 		}

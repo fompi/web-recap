@@ -20,7 +20,7 @@ Calculates and displays history summary statistics and hourly activity histogram
 Ingests queried browser history entries directly into a target database.
 .TP
 .B list
-Lists all detected web browsers and their local database file paths.
+Lists all detected web browsers and their local database file paths, annotating each profile with its access status: [Readable], [Access Denied (requires Full Disk Access)], or [Not found].
 .SH FLAGS
 .BI \-f\fR,\fB \-\-from " value"
 Start date/time for query. Supports ISO8601 strings (e.g. "2026-06-20T12:00:00Z") and relative keywords: "today", "yesterday", "start", "0", "now", or "N days/hours/minutes ago".
