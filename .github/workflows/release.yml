@@ -28,6 +28,7 @@ jobs:
       with:
         files: |
           ./dist/web-recap-linux-amd64
+          ./dist/web-recap-linux-arm64
           ./dist/web-recap-darwin-amd64
           ./dist/web-recap-darwin-arm64
           ./dist/web-recap-windows-amd64.exe

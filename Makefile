@@ -10,6 +10,7 @@ GOFLAGS := -ldflags="-s -w"
 
 # Platform targets
 LINUX_AMD64 := $(DIST_DIR)/$(BINARY_NAME)-linux-amd64
+LINUX_ARM64 := $(DIST_DIR)/$(BINARY_NAME)-linux-arm64
 DARWIN_AMD64 := $(DIST_DIR)/$(BINARY_NAME)-darwin-amd64
 DARWIN_ARM64 := $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64
 WINDOWS_AMD64 := $(DIST_DIR)/$(BINARY_NAME)-windows-amd64.exe
@@ -27,28 +28,33 @@ build:
 	@mkdir -p $(BIN_DIR)
 	$(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/web-recap
 
-build-all: $(LINUX_AMD64) $(DARWIN_AMD64) $(DARWIN_ARM64) $(WINDOWS_AMD64)
+build-all: $(LINUX_AMD64) $(LINUX_ARM64) $(DARWIN_AMD64) $(DARWIN_ARM64) $(WINDOWS_AMD64)
 	@echo "✓ Built all platforms"
 
 $(LINUX_AMD64):
 	@mkdir -p $(DIST_DIR)
 	@echo "Building Linux AMD64..."
-	GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
+
+$(LINUX_ARM64):
+	@mkdir -p $(DIST_DIR)
+	@echo "Building Linux ARM64..."
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
 
 $(DARWIN_AMD64):
 	@mkdir -p $(DIST_DIR)
 	@echo "Building macOS Intel..."
-	GOOS=darwin GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
 
 $(DARWIN_ARM64):
 	@mkdir -p $(DIST_DIR)
 	@echo "Building macOS ARM64..."
-	GOOS=darwin GOARCH=arm64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
 
 $(WINDOWS_AMD64):
 	@mkdir -p $(DIST_DIR)
 	@echo "Building Windows AMD64..."
-	GOOS=windows GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build $(GOFLAGS) -o $@ ./cmd/web-recap
 
 test:
 	$(GO) test ./...
