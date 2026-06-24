@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Chrome and Firefox history extraction now filters out subframe-only and redirect-artifact URLs by applying `WHERE hidden = 0`, preventing internal navigation noise from appearing in results (#31).
+- Safari history extraction now excludes failed page loads (DNS errors, timeouts, user-cancelled navigations) by applying `WHERE load_successful = 1` (#32).
+- All three browser handlers now resolve the referring visit's foreign key to an actual URL string via a self-join, exposed as `HistoryEntry.ReferrerURL`. Previously only the raw integer row ID was available (#33).
+- Added `HistoryEntry.VisitTypeLabel` (`link`|`typed`|`bookmark`|`reload`|`redirect`|`download`|`other`), populated by decoding Chrome's `transition` bitmask, Firefox's `visit_type` enum, and Safari's redirect/synthesized boolean flags. Raw browser-specific integers are still available as before (#34).
+- Chrome history extraction now joins the `visit_source` table (when present) and exposes `HistoryEntry.Source` as `local` or `synced`, distinguishing visits made on this device from those synced from other signed-in Chrome instances. Falls back to `local` for Chromium forks that predate the table (#35).
+- All three new fields (`referrer_url`, `visit_type_label`, `source`) are propagated through all ingest table definitions and INSERT builders for SQLite, Postgres, and MySQL.
+
 ## [0.5.0] - 2026-06-24
 
 ### Added
