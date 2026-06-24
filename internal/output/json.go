@@ -9,6 +9,9 @@ import (
 
 // FormatJSON writes history entries as JSON to the given writer
 func FormatJSON(w io.Writer, entries []models.HistoryEntry, pretty bool) error {
+	if entries == nil {
+		entries = []models.HistoryEntry{}
+	}
 	encoder := json.NewEncoder(w)
 	if pretty {
 		encoder.SetIndent("", "  ")

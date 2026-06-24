@@ -102,6 +102,18 @@ func TestFormatJSONLines(t *testing.T) {
 	}
 }
 
+func TestFormatJSON_NilEntries(t *testing.T) {
+	var buf bytes.Buffer
+	err := FormatJSON(&buf, nil, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := strings.TrimSpace(buf.String())
+	if got != "[]" {
+		t.Errorf("expected [] for nil entries, got %q", got)
+	}
+}
+
 func TestFormatJSONLines_Error(t *testing.T) {
 	entries := []models.HistoryEntry{
 		{Browser: "Chrome"},
