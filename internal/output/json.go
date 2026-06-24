@@ -3,31 +3,19 @@ package output
 import (
 	"encoding/json"
 	"io"
-	"time"
 
 	"github.com/rzolkos/web-recap/internal/models"
 )
 
-// FormatJSON writes history report as JSON to the given writer
-func FormatJSON(w io.Writer, entries []models.HistoryEntry, browser string, startDate, endDate time.Time, tz string) error {
-	if tz == "" {
-		tz = "UTC"
-	}
-
-	report := models.HistoryReport{
-		Browser:      browser,
-		StartDate:    startDate,
-		EndDate:      endDate,
-		Timezone:     tz,
-		TotalEntries: len(entries),
-		Entries:      entries,
-	}
-
+// FormatJSON writes history entries as JSON to the given writer
+func FormatJSON(w io.Writer, entries []models.HistoryEntry, pretty bool) error {
 	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
+	if pretty {
+		encoder.SetIndent("", "  ")
+	}
 	encoder.SetEscapeHTML(false)
 
-	return encoder.Encode(report)
+	return encoder.Encode(entries)
 }
 
 // FormatJSONLines writes history entries as JSON lines (one per line) to the given writer

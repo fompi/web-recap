@@ -23,39 +23,36 @@ func TestFormatJSON(t *testing.T) {
 		},
 	}
 
-	startDate := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
-	endDate := time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)
-
-	// Test with timezone = "" (defaults to UTC)
+	// Test pretty-printed JSON
 	var buf1 bytes.Buffer
-	err := FormatJSON(&buf1, entries, "Chrome", startDate, endDate, "")
+	err := FormatJSON(&buf1, entries, true)
 	if err != nil {
 		t.Fatalf("unexpected error formatting JSON: %v", err)
 	}
 
-	var report1 models.HistoryReport
-	if err := json.Unmarshal(buf1.Bytes(), &report1); err != nil {
+	output1 := buf1.String()
+	if !strings.Contains(output1, "  \"browser\": \"Chrome\"") {
+		t.Errorf("expected pretty printed output with indentation, got: %q", output1)
+	}
+
+	var parsed1 []models.HistoryEntry
+	if err := json.Unmarshal(buf1.Bytes(), &parsed1); err != nil {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
 	}
-
-	if report1.Browser != "Chrome" || report1.Timezone != "UTC" || report1.TotalEntries != 1 {
-		t.Errorf("incorrect report fields: %+v", report1)
+	if len(parsed1) != 1 || parsed1[0].Browser != "Chrome" {
+		t.Errorf("incorrect parsed entries: %+v", parsed1)
 	}
 
-	// Test with specific timezone
+	// Test compact JSON
 	var buf2 bytes.Buffer
-	err = FormatJSON(&buf2, entries, "Chrome", startDate, endDate, "America/New_York")
+	err = FormatJSON(&buf2, entries, false)
 	if err != nil {
 		t.Fatalf("unexpected error formatting JSON: %v", err)
 	}
 
-	var report2 models.HistoryReport
-	if err := json.Unmarshal(buf2.Bytes(), &report2); err != nil {
-		t.Fatalf("failed to unmarshal JSON: %v", err)
-	}
-
-	if report2.Timezone != "America/New_York" {
-		t.Errorf("expected timezone America/New_York, got %q", report2.Timezone)
+	output2 := buf2.String()
+	if strings.Contains(strings.TrimSpace(output2), "\n") {
+		t.Errorf("expected compact JSON without newlines, got: %q", output2)
 	}
 }
 

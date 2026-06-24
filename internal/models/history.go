@@ -35,14 +35,6 @@ type HistoryEntry struct {
 	Synthesized         bool  `json:"synthesized,omitempty"`
 }
 
-// HistoryReport represents a collection of history entries for a specific time period
-type HistoryReport struct {
-	Browser      string          `json:"browser"`
-	StartDate    time.Time       `json:"start_date"`
-	EndDate      time.Time       `json:"end_date"`
-	Timezone     string          `json:"timezone"`
-	TotalEntries int             `json:"total_entries"`
-	Entries      []HistoryEntry  `json:"entries"`
-}
+
 
 

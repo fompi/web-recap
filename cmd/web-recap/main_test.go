@@ -616,6 +616,62 @@ func TestParseLimit(t *testing.T) {
 	}
 }
 
+func TestCLI_JSONAndSummary(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "web-recap-summary-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dbPath := createMockChromeDB(t, tempDir)
+
+	// Test 1: JSON on stdout (should be pretty-printed/indented)
+	resetFlags()
+	rootCmd.SetArgs([]string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-F", "json", "--summary=true", "-f", "10 days ago"})
+	stdout, stderr, err := captureOutput(func() error {
+		return rootCmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("dump pretty-json failed: %v", err)
+	}
+
+	// Output should be raw JSON array and pretty-printed (contain spaces and newlines)
+	if !strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+		t.Errorf("expected JSON array format starting with '[', got: %s", stdout)
+	}
+	if !strings.Contains(stdout, "\n  {") {
+		t.Errorf("expected pretty-printed JSON with indentation, got: %s", stdout)
+	}
+
+	// Verify stderr summary contents
+	if !strings.Contains(stderr, "Summary: Extracted") {
+		t.Errorf("missing summary message on stderr: %s", stderr)
+	}
+	if !strings.Contains(stderr, "Google Chrome (Default):") {
+		t.Errorf("missing browser/profile breakdown in stderr: %s", stderr)
+	}
+
+	// Test 2: JSON to file (should be compact)
+	resetFlags()
+	outFile := filepath.Join(tempDir, "compact.json")
+	rootCmd.SetArgs([]string{"dump", "-b", "chrome", "-d", "chrome:" + dbPath, "-F", "json", "-o", outFile, "-f", "10 days ago"})
+	_, _, err = captureOutput(func() error {
+		return rootCmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("dump compact-json failed: %v", err)
+	}
+
+	fileBytes, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+	fileStr := string(fileBytes)
+	if strings.Contains(strings.TrimSpace(fileStr), "\n") {
+		t.Errorf("expected compact JSON in file (no newlines), got: %s", fileStr)
+	}
+}
+
 func TestCLI_Main(t *testing.T) {
 	resetFlags()
 	rootCmd.SetArgs([]string{"--version"})

@@ -476,7 +476,7 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 	case "text":
 		err = output.FormatText(out, allEntries)
 	case "json":
-		err = output.FormatJSON(out, allEntries, strings.Join(browserNames, ", "), fromVal, toVal, cfg.Timezone)
+		err = output.FormatJSON(out, allEntries, cfg.Output == "")
 	case "jsonl":
 		err = output.FormatJSONLines(out, allEntries)
 	case "csv":
@@ -490,7 +490,55 @@ func runQuery(cmd *cobra.Command, statsOnly bool, ingestOnly bool) (err error) {
 	}
 
 	if showSummary {
-		fmt.Fprintf(os.Stderr, "Summary: Extracted %d entries from %d browser profile(s)\n", len(allEntries), len(browsers))
+		var rangeStr string
+		if !fromVal.IsZero() && !toVal.IsZero() {
+			rangeStr = fmt.Sprintf("Range: %s to %s", fromVal.Format(time.RFC3339), toVal.Format(time.RFC3339))
+		} else if !fromVal.IsZero() {
+			rangeStr = fmt.Sprintf("Range: since %s", fromVal.Format(time.RFC3339))
+		} else if !toVal.IsZero() {
+			rangeStr = fmt.Sprintf("Range: until %s", toVal.Format(time.RFC3339))
+		} else {
+			rangeStr = "Range: all time"
+		}
+		tzStr := cfg.Timezone
+		if tzStr == "" {
+			tzStr = "UTC"
+		}
+
+		type browserProfile struct {
+			Name    string
+			Profile string
+		}
+		counts := make(map[browserProfile]int)
+		var order []browserProfile
+		seen := make(map[browserProfile]bool)
+
+		for _, b := range browsers {
+			bp := browserProfile{Name: b.Name, Profile: b.Profile}
+			if !seen[bp] {
+				seen[bp] = true
+				order = append(order, bp)
+			}
+		}
+
+		for _, entry := range allEntries {
+			bp := browserProfile{Name: entry.Browser, Profile: entry.Profile}
+			counts[bp]++
+			if !seen[bp] {
+				seen[bp] = true
+				order = append(order, bp)
+			}
+		}
+
+		fmt.Fprintf(os.Stderr, "Summary: Extracted %d entries in total (%s, Timezone: %s).\n", len(allEntries), rangeStr, tzStr)
+		for _, bp := range order {
+			count := counts[bp]
+			var pct float64
+			if len(allEntries) > 0 {
+				pct = float64(count) / float64(len(allEntries)) * 100.0
+			}
+			fmt.Fprintf(os.Stderr, "  - %s (%s): %d entries (%.1f%%)\n", bp.Name, bp.Profile, count, pct)
+		}
 	}
 
 	return nil
